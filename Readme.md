@@ -1,12 +1,12 @@
-::: center
+
 **Projet Producteurs--Consommateurs**\
 Polytech Grenoble --- Module PC-SE\
 Yahya Fergouch --- Novembre 2025
-:::
+
 
 ------------------------------------------------------------------------
 
-# Présentation Générale {#présentation-générale .unnumbered}
+# Présentation Générale 
 
 L'objectif est de comprendre les mécanismes de :
 
@@ -23,7 +23,7 @@ résoudre le même problème.
 
 ------------------------------------------------------------------------
 
-# Structure du Projet {#structure-du-projet .unnumbered}
+# Structure du Projet 
 
 ``` {.text fontsize="\\small"}
 prodcons/
@@ -79,7 +79,7 @@ prodcons/
 
 ------------------------------------------------------------------------
 
-# Exécution du Projet {#exécution-du-projet .unnumbered}
+# Exécution du Projet 
 
 Chaque version est autonome et peut être exécutée via Maven :
 
@@ -91,7 +91,7 @@ mvn -q exec:java -Dexec.mainClass=prodcons.v1.TestProdCons
 Pour exécuter une autre version, remplacez simplement `v1` par `v2`,
 `v3`, etc.
 
-# Fichier de Configuration {#fichier-de-configuration .unnumbered}
+# Fichier de Configuration 
 
 Le fichier `options.xml` définit les paramètres du système :
 
@@ -109,7 +109,7 @@ Le fichier `options.xml` définit les paramètres du système :
 
 ------------------------------------------------------------------------
 
-# Principe du Fonctionnement --- Version 2 {#principe-du-fonctionnement-version-2 .unnumbered}
+# Principe du Fonctionnement --- Version 2 
 
 Chaque producteur reçoit un **quota fixe** de messages à produire.
 
@@ -130,7 +130,7 @@ programme peut alors s'arrêter proprement, sans attente inutile.
 
 ------------------------------------------------------------------------
 
-# Résumé Conceptuel {#résumé-conceptuel .unnumbered}
+# Résumé Conceptuel 
 
 -   Les producteurs créent des messages et les insèrent dans le tampon ;
 
@@ -149,9 +149,9 @@ programme peut alors s'arrêter proprement, sans attente inutile.
 
 ------------------------------------------------------------------------
 
-# Évolution des Versions {#évolution-des-versions .unnumbered}
+# Évolution des Versions 
 
-::: center
+
    **Version**  **Concept principal**
   ------------- ------------------------------------------------------------------
        v1       Tampon simple, synchronisation par `wait/notify`
@@ -160,13 +160,12 @@ programme peut alors s'arrêter proprement, sans attente inutile.
        v4       Tampon utilisant **verrous explicites** et `Condition`
        v5       Extension avec `get(int k)` (multi-consommation)
        v6       Extension avec `put(Message,int)` (multi-exemplaires synchrones)
-:::
+
 
 ------------------------------------------------------------------------
 
-# Aperçu des futures versions {#aperçu-des-futures-versions .unnumbered}
 
-## Version 3 --- Sémaphores {#version-3-sémaphores .unnumbered}
+## Version 3 --- Sémaphores 
 
 L'implémentation utilise trois sémaphores :
 
@@ -179,7 +178,7 @@ L'implémentation utilise trois sémaphores :
 Ce mécanisme favorise le parallélisme en réduisant la contention par
 rapport au moniteur de la version 1.
 
-## Version 4 --- Locks et Conditions {#version-4-locks-et-conditions .unnumbered}
+## Version 4 --- Locks et Conditions 
 
 On remplace les moniteurs implicites par un `ReentrantLock` et deux
 objets `Condition` :
@@ -191,7 +190,7 @@ objets `Condition` :
 Cette version permet un contrôle plus précis et prépare les variantes
 plus avancées.
 
-## Version 5 --- Multi-consommation {#version-5-multi-consommation .unnumbered}
+## Version 5 --- Multi-consommation 
 
 On étend l'interface avec :
 
@@ -201,10 +200,16 @@ Message[] get(int k) throws InterruptedException;
 
 Un consommateur peut ainsi retirer `k` messages consécutifs. Le tampon
 doit bloquer jusqu'à ce que `k` messages soient disponibles.
-Problème si un dernier lot n'as que 2 par exemple et le consomatteur cherche 3
-donc on ajoute une variable finished de type bool pourpermettre de depasser ce problème.
+Implémentation naïve : dans get(k), on fait while (count < k) wait();
+Résultat : si la production se termine et qu’il reste moins de k messages (ex. 2 alors que k=3), la condition n’est jamais satisfaite → le consommateur attend indéfiniment. C’est un blocage « tout-ou-rien ».
+L’idée simple qui corrige:
 
-## Version 6 --- Multi-exemplaires synchrones {#version-6-multi-exemplaires-synchrones .unnumbered}
+- On ajoute un état de fin : finished (booléen).
+Il passe à true quand tout ce qui devait être produit a été produit (deux façons simples : soit un compteur de producteurs qui tombe à 0, soit un expectedTotal atteint).
+
+- Dans get(k), on n’exige plus que count >= k pour sortir.
+On accumule ce qui arrive au fil du temps, et si finished est vrai et qu’on ne pourra plus atteindre k, on rend le lot partiel (éventuellement vide pour signaler la fin).
+## Version 6 --- Multi-exemplaires synchrones 
 
 L'interface devient :
 
@@ -225,7 +230,7 @@ plusieurs threads.
 
 ------------------------------------------------------------------------
 
-# Remarques finales {#remarques-finales .unnumbered}
+# Remarques finales 
 
 -   Les impressions (`System.out.println`) actuelles servent au débogage
     et seront retirées dans la version finale pour éviter d'altérer les

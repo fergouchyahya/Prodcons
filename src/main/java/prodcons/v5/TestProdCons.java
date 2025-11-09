@@ -38,7 +38,7 @@ public class TestProdCons {
         }
         final int TOTAL = total;
 
-        IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        IProdConsBuffer buffer = new ProdConsBuffer(bufSz, TOTAL);
         AtomicInteger consumed = new AtomicInteger(0);
 
         List<Thread> all = new ArrayList<>();
@@ -82,8 +82,6 @@ public class TestProdCons {
             Thread.sleep(100);
         }
 
-        // Fin contrôlée : interrompre les consommateurs, puis join
-        consumers.forEach(Thread::interrupt);
         for (Thread t : producers)
             t.join();
         for (Thread t : consumers)

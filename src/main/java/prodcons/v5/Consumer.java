@@ -20,7 +20,7 @@ public class Consumer extends Thread {
     public void run() {
         while (!isInterrupted()) {
             try {
-                Message[] batch = ((ProdConsBuffer) buffer).get(k);
+                Message[] batch = buffer.get(k);
                 if (batch.length == 0) {
                     // fin de production et tampon vidé
                     return;
