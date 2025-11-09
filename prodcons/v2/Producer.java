@@ -1,5 +1,0 @@
-package v2;
-
-public class Producer {
-
-}
