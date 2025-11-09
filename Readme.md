@@ -201,6 +201,8 @@ Message[] get(int k) throws InterruptedException;
 
 Un consommateur peut ainsi retirer `k` messages consécutifs. Le tampon
 doit bloquer jusqu'à ce que `k` messages soient disponibles.
+Problème si un dernier lot n'as que 2 par exemple et le consomatteur cherche 3
+donc on ajoute une variable finished de type bool pourpermettre de depasser ce problème.
 
 ## Version 6 --- Multi-exemplaires synchrones {#version-6-multi-exemplaires-synchrones .unnumbered}
 
