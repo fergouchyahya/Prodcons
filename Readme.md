@@ -1,6 +1,7 @@
 prodcons/
 ├─ options.xml
-├─ v1/
+├─ v1/ //  mvn -q clean package mvn -q exec:java -Dexec.mainClass=prodcons.v1.TestProdCons
+
 │  ├─ IProdConsBuffer.java
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
