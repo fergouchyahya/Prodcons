@@ -1,18 +1,31 @@
+::: center
+**Projet Producteurs--Consommateurs**\
+Polytech Grenoble --- Module PC-SE\
+Yahya Fergouch --- Novembre 2025
+:::
+
+------------------------------------------------------------------------
+
 # Présentation Générale {#présentation-générale .unnumbered}
 
 L'objectif est de comprendre les mécanismes de :
 
--   Synchronisation entre threads producteurs et consommateurs.
+-   Synchronisation entre threads producteurs et consommateurs ;
 
--   Communication via un tampon (buffer) partagé.
+-   Communication via un tampon (buffer) partagé ;
 
--   Gestion correcte de la terminaison du système.
+-   Gestion correcte de la terminaison du système ;
 
 -   Utilisation de verrous, moniteurs et sémaphores.
 
+Chaque version (`v1` à `v6`) explore une méthode différente pour
+résoudre le même problème.
+
+------------------------------------------------------------------------
+
 # Structure du Projet {#structure-du-projet .unnumbered}
 
-``` {language="Java"}
+``` {.text fontsize="\\small"}
 prodcons/
 ├─ options.xml
 ├─ v1/
@@ -56,7 +69,7 @@ prodcons/
 │  └─ TestProdCons.java
 │
 └─ v6/
-   ├─ IProdConsBuffer.java   # interface modifiée pour supporter put(Message,int)
+   ├─ IProdConsBuffer.java   # interface modifiée avec put(Message,int)
    ├─ ProdConsBuffer.java
    ├─ Message.java
    ├─ Producer.java
@@ -64,12 +77,13 @@ prodcons/
    └─ TestProdCons.java
 ```
 
+------------------------------------------------------------------------
+
 # Exécution du Projet {#exécution-du-projet .unnumbered}
 
-Chaque version (`v1` à `v6`) peut être exécutée indépendamment à l'aide
-de Maven.
+Chaque version est autonome et peut être exécutée via Maven :
 
-``` {.bash language="bash"}
+``` {.bash fontsize="\\small"}
 mvn -q clean package
 mvn -q exec:java -Dexec.mainClass=prodcons.v1.TestProdCons
 ```
@@ -81,7 +95,7 @@ Pour exécuter une autre version, remplacez simplement `v1` par `v2`,
 
 Le fichier `options.xml` définit les paramètres du système :
 
-``` {.xml language="xml"}
+``` {.xml fontsize="\\small"}
 <properties>
   <entry key="nProd">3</entry>       <!-- nombre de producteurs -->
   <entry key="nCons">2</entry>       <!-- nombre de consommateurs -->
@@ -93,51 +107,128 @@ Le fichier `options.xml` définit les paramètres du système :
 </properties>
 ```
 
-# Principe du Fonctionnement {#principe-du-fonctionnement pour la version 2}
+------------------------------------------------------------------------
+
+# Principe du Fonctionnement --- Version 2 {#principe-du-fonctionnement-version-2 .unnumbered}
 
 Chaque producteur reçoit un **quota fixe** de messages à produire.
-Exemple :
 
 ::: center
-   **Producteur**   **Messages à produire**
-  ---------------- -------------------------
-         1                     3
-         2                     5
-         3                     2
+   **Producteur**   **Messages à produire**  
+  ---------------- ------------------------- --
+         1                     3             
+         2                     5             
+         3                     2             
 :::
 
-Le total est donc : $$TOTAL = 3 + 5 + 2 = 10 \text{ messages.}$$
+Le total est donc : $$TOTAL = 3 + 5 + 2 = 10~\text{messages.}$$
 
 Cette valeur est cruciale : elle indique combien de messages existeront
 dans tout le système. Dès que les 10 messages ont été consommés, on sait
 que : $$\text{Tous les messages ont été produits et consommés.}$$ Le
 programme peut alors s'arrêter proprement, sans attente inutile.
 
+------------------------------------------------------------------------
+
 # Résumé Conceptuel {#résumé-conceptuel .unnumbered}
 
--   Les producteurs créent des messages et les insèrent dans le tampon.
+-   Les producteurs créent des messages et les insèrent dans le tampon ;
 
--   Les consommateurs les retirent au fur et à mesure.
+-   Les consommateurs les retirent au fur et à mesure ;
 
--   Un moniteur contrôle la progression en affichant les statistiques :
+-   Un moniteur affiche périodiquement les statistiques :
 
-    -   Nombre de messages dans le tampon.
+    -   Nombre de messages dans le tampon ;
 
-    -   Total de messages produits.
+    -   Total de messages produits ;
 
     -   Total de messages consommés.
 
 -   Lorsque la consommation atteint le total attendu, le système
     s'éteint proprement.
 
+------------------------------------------------------------------------
+
 # Évolution des Versions {#évolution-des-versions .unnumbered}
 
 ::: center
    **Version**  **Concept principal**
-  ------------- -----------------------------------------
-       v1       Tampon simple, pas de synchronisation
-       v2       Quotas fixes, arrêt propre du système
+  ------------- ------------------------------------------------------------------
+       v1       Tampon simple, synchronisation par `wait/notify`
+       v2       Quotas fixes et terminaison automatique
+       v3       Tampon géré par **sémaphores** (`empty/full/mutex`)
+       v4       Tampon utilisant **verrous explicites** et `Condition`
+       v5       Extension avec `get(int k)` (multi-consommation)
+       v6       Extension avec `put(Message,int)` (multi-exemplaires synchrones)
 :::
 
-# Remarque
--   les tests utilisent des print que nous allons enlevée dans le future 
+------------------------------------------------------------------------
+
+# Aperçu des futures versions {#aperçu-des-futures-versions .unnumbered}
+
+## Version 3 --- Sémaphores {#version-3-sémaphores .unnumbered}
+
+L'implémentation utilise trois sémaphores :
+
+-   `empty` : compte les places libres ;
+
+-   `full` : compte les messages disponibles ;
+
+-   `mutex` : assure l'exclusion mutuelle.
+
+Ce mécanisme favorise le parallélisme en réduisant la contention par
+rapport au moniteur de la version 1.
+
+## Version 4 --- Locks et Conditions {#version-4-locks-et-conditions .unnumbered}
+
+On remplace les moniteurs implicites par un `ReentrantLock` et deux
+objets `Condition` :
+
+-   `notFull.await()` quand le tampon est plein ;
+
+-   `notEmpty.await()` quand il est vide.
+
+Cette version permet un contrôle plus précis et prépare les variantes
+plus avancées.
+
+## Version 5 --- Multi-consommation {#version-5-multi-consommation .unnumbered}
+
+On étend l'interface avec :
+
+``` {.java fontsize="\\small"}
+Message[] get(int k) throws InterruptedException;
+```
+
+Un consommateur peut ainsi retirer `k` messages consécutifs. Le tampon
+doit bloquer jusqu'à ce que `k` messages soient disponibles.
+
+## Version 6 --- Multi-exemplaires synchrones {#version-6-multi-exemplaires-synchrones .unnumbered}
+
+L'interface devient :
+
+``` {.java fontsize="\\small"}
+void put(Message m, int n) throws InterruptedException;
+```
+
+Le message est produit en `n` exemplaires :
+
+-   Le producteur reste bloqué jusqu'à ce que les `n` exemplaires soient
+    consommés ;
+
+-   Chaque consommateur dupliqué reste bloqué jusqu'à la consommation
+    totale.
+
+Cette version permet d'étudier la synchronisation stricte entre
+plusieurs threads.
+
+------------------------------------------------------------------------
+
+# Remarques finales {#remarques-finales .unnumbered}
+
+-   Les impressions (`System.out.println`) actuelles servent au débogage
+    et seront retirées dans la version finale pour éviter d'altérer les
+    performances.
+
+-   Chaque version est indépendante ; la progression se fait
+    progressivement vers des mécanismes de synchronisation plus précis
+    et plus généraux.
