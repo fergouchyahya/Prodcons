@@ -24,13 +24,12 @@ public class Producer extends Thread {
                 int id = GEN.incrementAndGet();
                 Message m = new Message(id, getId());
                 buffer.put(m);
-                Log.info("%s put %-6s  (nmsg=%d, tot=%d)", getName(), m, buffer.nmsg(), buffer.totmsg());
 
             } catch (InterruptedException e) {
                 Log.info("%s interrupted", getName());
                 return;
             }
         }
-        Log.info("%s finished producing", getName());
+        
     }
 }
