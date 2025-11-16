@@ -1,34 +1,44 @@
 package prodcons.v6;
 
+/**
+ * Interface du tampon ProdCons pour la version v6.
+ *
+ * Nouveauté : un producteur peut déposer un message en n exemplaires,
+ * et cette production est synchronisée avec n consommateurs.
+ */
 public interface IProdConsBuffer {
-    /** Put the message m in the prodcons buffer (FIFO). */
-    void put(Message m) throws InterruptedException;
 
     /**
-     * Retrieve one message (FIFO). Peut renvoyer null si fin de prod et tampon
-     * vide.
+     * Dépose n exemplaires du message m dans le buffer.
+     *
+     * Le thread producteur est bloqué jusqu'à ce que tous les exemplaires
+     * du message aient été consommés.
+     *
+     * @param m le message à déposer
+     * @param n nombre d'exemplaires du message
+     */
+    void put(Message m, int n) throws InterruptedException;
+
+    /**
+     * Récupère un exemplaire de message dans l'ordre FIFO logique.
+     *
+     * Un consommateur qui obtient un message restera bloqué tant que tous
+     * les exemplaires de ce message n'ont pas été consommés, conformément
+     * à la spécification de la v6.
+     *
+     * @return un message du buffer
      */
     Message get() throws InterruptedException;
 
     /**
-     * Retrieve k consecutive messages (FIFO). Peut renvoyer un lot partiel si fin
-     * de prod.
+     * Nombre de messages actuellement dans le buffer.
+     * Ici, ce nombre correspond au nombre de "slots logiques"
+     * (messages différents encore présents), pas au nombre d'exemplaires.
      */
-    Message[] get(int k) throws InterruptedException;
-
-    /** Nombre actuellement dans le buffer. */
     int nmsg();
 
-    /** Nombre total produits depuis le début. */
-    int totmsg();
-
     /**
-     * Put n instances of the message m in the prodcons buffer
-     * The current thread is blocked until all
-     * instances of the message have been consumed
-     * Any consumer of m is also blocked until all the instances of
-     * the message have been consumed
-     **/
-    public void put(Message m, int n) throws InterruptedException;
-
+     * Nombre total d'exemplaires de messages produits depuis le début.
+     */
+    int totmsg();
 }
