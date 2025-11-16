@@ -227,6 +227,12 @@ Chaque version dispose d'un test dédié :
 Les tests v6 vérifient en particulier la synchronisation stricte des
 multi-exemplaires.
 
+# TO-DO
+
+-   v7 readme after being okay with the implem
+
+
+
 # Conclusion 
 
 Ce projet propose une montée en puissance progressive :
@@ -240,5 +246,4 @@ Ce projet propose une montée en puissance progressive :
 -   jusqu'aux mécanismes avancés de consommation par lots et
     multi-exemplaires synchrones.
 
-Il constitue une base solide pour comprendre les mécanismes de
-synchronisation modernes.
+
