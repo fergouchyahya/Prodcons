@@ -1,37 +1,37 @@
-
-**Projet Producteurs--Consommateurs**\
-Polytech Grenoble --- Module PC-SE\
-Yahya Fergouch --- Novembre 2025
-
-
-------------------------------------------------------------------------
-
 # Présentation Générale 
 
-L'objectif est de comprendre les mécanismes de :
+Ce projet explore plusieurs approches de synchronisation pour résoudre
+le problème classique **Producteurs--Consommateurs**, où plusieurs
+threads producteurs génèrent des messages et plusieurs threads
+consommateurs les extraient depuis un tampon partagé.
 
--   Synchronisation entre threads producteurs et consommateurs ;
+Les différentes versions (`v1` à `v6`) introduisent progressivement :
 
--   Communication via un tampon (buffer) partagé ;
+-   la synchronisation par moniteurs Java (`synchronized`, `wait`,
+    `notify`);
 
--   Gestion correcte de la terminaison du système ;
+-   l'utilisation de sémaphores (`empty`, `full`, `mutex`);
 
--   Utilisation de verrous, moniteurs et sémaphores.
+-   l'utilisation de verrous explicites et de variables de condition;
 
-Chaque version (`v1` à `v6`) explore une méthode différente pour
-résoudre le même problème.
+-   la consommation par lots (`get(k)`);
 
-------------------------------------------------------------------------
+-   les messages en multi-exemplaires synchrones.
+
+Chaque version illustre un concept fondamental de programmation
+concurrente.
 
 # Structure du Projet 
 
-``` {.text fontsize="\\small"}
+``` {style="code"}
 prodcons/
 ├─ options.xml
+│
 ├─ v1/
 │  ├─ IProdConsBuffer.java
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
+│  ├─ Log.java
 │  ├─ Producer.java
 │  ├─ Consumer.java
 │  └─ TestProdCons.java
@@ -40,6 +40,7 @@ prodcons/
 │  ├─ IProdConsBuffer.java
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
+│  ├─ Log.java
 │  ├─ Producer.java
 │  ├─ Consumer.java
 │  └─ TestProdCons.java
@@ -48,6 +49,7 @@ prodcons/
 │  ├─ IProdConsBuffer.java
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
+│  ├─ Log.java
 │  ├─ Producer.java
 │  ├─ Consumer.java
 │  └─ TestProdCons.java
@@ -56,6 +58,7 @@ prodcons/
 │  ├─ IProdConsBuffer.java
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
+│  ├─ Log.java
 │  ├─ Producer.java
 │  ├─ Consumer.java
 │  └─ TestProdCons.java
@@ -64,178 +67,178 @@ prodcons/
 │  ├─ IProdConsBuffer.java   # interface étendue avec get(int k)
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
+│  ├─ Log.java
 │  ├─ Producer.java
 │  ├─ Consumer.java
 │  └─ TestProdCons.java
 │
 └─ v6/
-   ├─ IProdConsBuffer.java   # interface modifiée avec put(Message,int)
+   ├─ IProdConsBuffer.java   # interface modifiée pour put(m,n)
    ├─ ProdConsBuffer.java
    ├─ Message.java
+   │  ├─ Log.java
    ├─ Producer.java
    ├─ Consumer.java
    └─ TestProdCons.java
 ```
 
-------------------------------------------------------------------------
+# Exécution 
 
-# Exécution du Projet 
+Chaque version est autonome. Exemple :
 
-Chaque version est autonome et peut être exécutée via Maven :
-
-``` {.bash fontsize="\\small"}
+``` {style="code"}
 mvn -q clean package
 mvn -q exec:java -Dexec.mainClass=prodcons.v1.TestProdCons
 ```
 
-Pour exécuter une autre version, remplacez simplement `v1` par `v2`,
-`v3`, etc.
+Pour exécuter une version ultérieure, remplacez simplement `v1` par
+`v2`, `v3`, etc.
 
-# Fichier de Configuration 
+# Fichier de Configuration {#fichier-de-configuration .unnumbered}
 
-Le fichier `options.xml` définit les paramètres du système :
-
-``` {.xml fontsize="\\small"}
+``` {style="code"}
 <properties>
-  <entry key="nProd">3</entry>       <!-- nombre de producteurs -->
-  <entry key="nCons">2</entry>       <!-- nombre de consommateurs -->
-  <entry key="bufSz">5</entry>       <!-- taille du tampon -->
-  <entry key="prodTime">100</entry>  <!-- délai de production (ms) -->
-  <entry key="consTime">150</entry>  <!-- délai de consommation (ms) -->
-  <entry key="minProd">2</entry>     <!-- min messages par producteur -->
-  <entry key="maxProd">5</entry>     <!-- max messages par producteur -->
+  <entry key="nProd">3</entry>
+  <entry key="nCons">2</entry>
+  <entry key="bufSz">5</entry>
+  <entry key="prodTime">100</entry>
+  <entry key="consTime">150</entry>
+  <entry key="minProd">2</entry>
+  <entry key="maxProd">5</entry>
+
+  <!-- v5 -->
+  <entry key="k">3</entry>
+
+  <!-- v6 -->
+  <entry key="nCopies">3</entry>
 </properties>
 ```
 
-------------------------------------------------------------------------
+# Résumé Conceptuel par Version 
 
-# Principe du Fonctionnement --- Version 2 
+## v1 --- Moniteurs Java 
 
-Chaque producteur reçoit un **quota fixe** de messages à produire.
+Tampon implémenté avec `synchronized`, `wait` et `notifyAll`. Les
+producteurs attendent lorsque le tampon est plein, et les consommateurs
+attendent lorsqu'il est vide. Pas de fin automatique : les consommateurs
+tournent sans fin.
 
-::: center
-   **Producteur**   **Messages à produire**  
-  ---------------- ------------------------- --
-         1                     3             
-         2                     5             
-         3                     2             
-:::
+## v2 --- Terminaison Déterministe 
 
-Le total est donc : $$TOTAL = 3 + 5 + 2 = 10~\text{messages.}$$
-
-Cette valeur est cruciale : elle indique combien de messages existeront
-dans tout le système. Dès que les 10 messages ont été consommés, on sait
-que : $$\text{Tous les messages ont été produits et consommés.}$$ Le
-programme peut alors s'arrêter proprement, sans attente inutile.
-
-------------------------------------------------------------------------
-
-# Résumé Conceptuel 
-
--   Les producteurs créent des messages et les insèrent dans le tampon ;
-
--   Les consommateurs les retirent au fur et à mesure ;
-
--   Un moniteur affiche périodiquement les statistiques :
-
-    -   Nombre de messages dans le tampon ;
-
-    -   Total de messages produits ;
-
-    -   Total de messages consommés.
-
--   Lorsque la consommation atteint le total attendu, le système
-    s'éteint proprement.
-
-------------------------------------------------------------------------
-
-# Évolution des Versions 
+Chaque producteur reçoit un **quota fixe**. Exemple :
 
 
-   **Version**  **Concept principal**
-  ------------- ------------------------------------------------------------------
-       v1       Tampon simple, synchronisation par `wait/notify`
-       v2       Quotas fixes et terminaison automatique
-       v3       Tampon géré par **sémaphores** (`empty/full/mutex`)
-       v4       Tampon utilisant **verrous explicites** et `Condition`
-       v5       Extension avec `get(int k)` (multi-consommation)
-       v6       Extension avec `put(Message,int)` (multi-exemplaires synchrones)
+   Producteur   Quota
+  ------------ -------
+       P1         3
+       P2         5
+       P3         2
 
 
-------------------------------------------------------------------------
+Total messages attendus : $3 + 5 + 2 = 10$.
 
+Lorsque les 10 messages sont consommés, le système peut s'arrêter
+proprement.
 
-## Version 3 --- Sémaphores 
+## v3 --- Sémaphores 
 
-L'implémentation utilise trois sémaphores :
+Utilisation de trois sémaphores :
 
--   `empty` : compte les places libres ;
+-   **empty** : nombre de cases libres;
 
--   `full` : compte les messages disponibles ;
+-   **full** : nombre de messages prêts;
 
--   `mutex` : assure l'exclusion mutuelle.
+-   **mutex** : exclusion mutuelle.
 
-Ce mécanisme favorise le parallélisme en réduisant la contention par
-rapport au moniteur de la version 1.
+Cette version maximise le parallélisme.
 
-## Version 4 --- Locks et Conditions 
+## v4 --- ReentrantLock et Conditions 
 
-On remplace les moniteurs implicites par un `ReentrantLock` et deux
-objets `Condition` :
+Synchronisation plus fine via :
 
--   `notFull.await()` quand le tampon est plein ;
+-   un `ReentrantLock` équitable ;
 
--   `notEmpty.await()` quand il est vide.
+-   deux conditions : `notFull` et `notEmpty`.
 
-Cette version permet un contrôle plus précis et prépare les variantes
-plus avancées.
+Cette version est plus expressive que les moniteurs traditionnels.
 
-## Version 5 --- Multi-consommation 
+## v5 --- Multi-Consommation 
 
-On étend l'interface avec :
+Extension de l'interface :
 
-``` {.java fontsize="\\small"}
-Message[] get(int k) throws InterruptedException;
+``` {style="code"}
+Message[] get(int k);
 ```
 
-Un consommateur peut ainsi retirer `k` messages consécutifs. Le tampon
-doit bloquer jusqu'à ce que `k` messages soient disponibles.
-Implémentation naïve : dans get(k), on fait while (count < k) wait();
-Résultat : si la production se termine et qu’il reste moins de k messages (ex. 2 alors que k=3), la condition n’est jamais satisfaite → le consommateur attend indéfiniment. C’est un blocage « tout-ou-rien ».
-L’idée simple qui corrige:
+Problème : si la production finit avant que k messages soient
+disponibles, attente infinie. Solution : introduire un **état de fin**
+permettant de rendre un lot partiel ou vide pour signaler la
+terminaison.
 
-- On ajoute un état de fin : finished (booléen).
-Il passe à true quand tout ce qui devait être produit a été produit (deux façons simples : soit un compteur de producteurs qui tombe à 0, soit un expectedTotal atteint).
+## v6 --- Multi-Exemplaires Synchrones 
 
-- Dans get(k), on n’exige plus que count >= k pour sortir.
-On accumule ce qui arrive au fil du temps, et si finished est vrai et qu’on ne pourra plus atteindre k, on rend le lot partiel (éventuellement vide pour signaler la fin).
-## Version 6 --- Multi-exemplaires synchrones 
+Interface modifiée :
 
-L'interface devient :
-
-``` {.java fontsize="\\small"}
-void put(Message m, int n) throws InterruptedException;
+``` {style="code"}
+void put(Message m, int n);
 ```
 
-Le message est produit en `n` exemplaires :
+Un producteur dépose un message en $n$ exemplaires.
 
--   Le producteur reste bloqué jusqu'à ce que les `n` exemplaires soient
-    consommés ;
+-   le producteur ne reprend pas tant que les $n$ exemplaires ne sont
+    pas consommés ;
 
--   Chaque consommateur dupliqué reste bloqué jusqu'à la consommation
-    totale.
+-   chaque consommateur impliqué reste aussi bloqué ;
 
-Cette version permet d'étudier la synchronisation stricte entre
-plusieurs threads.
+-   le dernier consommateur débloque tout le monde.
 
-------------------------------------------------------------------------
+Implémentation via des "slots" contenant : le message, le nombre total
+d'exemplaires, le nombre consommé et une condition-barrière locale.
 
-# Remarques finales 
+# Lecture des Sorties 
 
--   Les impressions (`System.out.println`) actuelles servent au débogage
-    et seront retirées dans la version finale pour éviter d'altérer les
-    performances.
+Les logs affichent :
 
--   Chaque version est indépendante ; la progression se fait
-    progressivement vers des mécanismes de synchronisation plus précis
-    et plus généraux.
+-   les insertions et retraits ;
+
+-   l'état du tampon ;
+
+-   les synchronisations (notamment en v6).
+
+Un moniteur d'affichage peut également montrer périodiquement :
+
+-   `nmsg()` : nombre de slots actifs ;
+
+-   `totmsg()` : total d'exemplaires produits.
+
+# Tests 
+
+Chaque version dispose d'un test dédié :
+
+-   mélange du démarrage des threads ;
+
+-   affichage périodique ;
+
+-   mécanisme de terminaison propre ;
+
+-   vérification de la cohérence finale (buffer vide, compteurs
+    corrects).
+
+Les tests v6 vérifient en particulier la synchronisation stricte des
+multi-exemplaires.
+
+# Conclusion 
+
+Ce projet propose une montée en puissance progressive :
+
+-   des moniteurs simples,
+
+-   aux sémaphores,
+
+-   aux verrous et conditions,
+
+-   jusqu'aux mécanismes avancés de consommation par lots et
+    multi-exemplaires synchrones.
+
+Il constitue une base solide pour comprendre les mécanismes de
+synchronisation modernes.

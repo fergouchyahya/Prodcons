@@ -1,20 +1,44 @@
+<!--
+  Projet ProdCons — Polytech Grenoble (PC-SE)
+  POM Maven principal permettant :
+    - la compilation en Java 17
+    - l'exécution simple des différentes versions via exec:java
+-->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <!-- Version du modèle POM -->
   <modelVersion>4.0.0</modelVersion>
 
+  <!-- Coordonnées Maven du projet -->
   <groupId>pc.prodcons</groupId>
   <artifactId>prodcons</artifactId>
   <version>1.0-SNAPSHOT</version>
   <name>ProdCons</name>
+
+  <!-- Propriétés globales du projet -->
   <properties>
+    <!-- Version cible de Java -->
     <maven.compiler.release>17</maven.compiler.release>
+
+    <!--
+      Classe main par défaut utilisée par exec:java.
+      Tu peux la surcharger en ligne de commande avec :
+        -Dexec.mainClass=prodcons.vX.TestProdCons
+    -->
+    <exec.mainClass>prodcons.v1.TestProdCons</exec.mainClass>
   </properties>
 
   <build>
     <plugins>
-      <!-- Compiler -->
+
+      <!--
+        Plugin de compilation Java
+        Assure la compilation en Java 17.
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -24,16 +48,28 @@
         </configuration>
       </plugin>
 
-      <!-- Lancer une classe main facilement -->
+      <!--
+        Plugin exec-maven-plugin
+        Permet d'exécuter une classe contenant un main().
+
+        Utilisation typique :
+          mvn -q exec:java
+            → lancera la classe définie dans ${exec.mainClass}
+
+          mvn -q exec:java -Dexec.mainClass=prodcons.v5.TestProdCons
+            → lancera la version v5 sans toucher au pom.xml
+      -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.5.0</version>
         <configuration>
-          <!-- Par défaut: v1 -->
-          <mainClass>prodcons.v1.TestProdCons</mainClass>
+          <!-- La classe main réelle vient de la propriété exec.mainClass -->
+          <mainClass>${exec.mainClass}</mainClass>
         </configuration>
       </plugin>
+
     </plugins>
   </build>
+
 </project>

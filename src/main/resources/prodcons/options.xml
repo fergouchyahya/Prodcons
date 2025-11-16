@@ -8,7 +8,7 @@
  <entry key="consTime">30</entry> 
  <entry key="minProd">5</entry> 
  <entry key="maxProd">500</entry> 
- <entry key="k">5</entry>
+ <entry key="k">3</entry>
  <entry key="nCopies">2</entry>
 
 </properties>
