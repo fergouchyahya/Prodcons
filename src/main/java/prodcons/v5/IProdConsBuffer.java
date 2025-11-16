@@ -1,25 +1,47 @@
 package prodcons.v5;
 
+/**
+ * Interface du tampon ProdCons pour la version v5.
+ *
+ * Nouveauté par rapport aux versions précédentes :
+ * - ajout de get(int k) qui permet de récupérer un lot de k messages
+ * consécutifs.
+ * k peut être supérieur à la taille du buffer physique, on parle en termes de
+ * "flux" logique de messages, pas de taille du tableau.
+ */
 public interface IProdConsBuffer {
-    /** Put the message m in the prodcons buffer (FIFO). */
+
+    /**
+     * Insère le message m dans le buffer (ordre FIFO).
+     */
     void put(Message m) throws InterruptedException;
 
     /**
-     * Retrieve one message (FIFO). Peut renvoyer null si fin de prod et tampon
-     * vide.
+     * Récupère un message (FIFO).
+     *
+     * Peut renvoyer null si la production est terminée et que le tampon est vide.
      */
     Message get() throws InterruptedException;
 
     /**
-     * Retrieve k consecutive messages (FIFO). Peut renvoyer un lot partiel si fin
-     * de prod.
+     * Récupère k messages consécutifs (FIFO).
+     *
+     * Selon l'état de la production et du tampon, la taille du tableau
+     * retourné peut être :
+     * - exactement k si suffisamment de messages sont disponibles,
+     * - strictement comprise entre 1 et k si la production est terminée mais
+     * qu'il reste moins de k messages à vider,
+     * - 0 (tableau vide) si la production est terminée et que le tampon est vide.
      */
     Message[] get(int k) throws InterruptedException;
 
-    /** Nombre actuellement dans le buffer. */
+    /**
+     * Nombre de messages actuellement présents dans le buffer.
+     */
     int nmsg();
 
-    /** Nombre total produits depuis le début. */
+    /**
+     * Nombre total de messages produits depuis le début.
+     */
     int totmsg();
-
 }
