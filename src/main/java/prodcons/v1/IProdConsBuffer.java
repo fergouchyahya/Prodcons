@@ -2,11 +2,9 @@ package prodcons.v1;
 
 /**
  * Buffer partagé entre producteurs et consommateurs.
- * <p>
  * Cette interface représente la vue abstraite du tampon :
  * - des producteurs insèrent des Message via put(Message)
  * - des consommateurs retirent des messages via get()
- * <p>
  * Les méthodes nmsg() et totmsg() servent
  * à l'observation / aux tests (statistiques, logs).
  */

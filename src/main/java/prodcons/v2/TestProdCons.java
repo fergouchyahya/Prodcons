@@ -5,15 +5,24 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Test de la version v2 du problème producteur-consommateur.
+ *
+ * Objectif principal : vérifier la terminaison automatique.
+ * Tous les producteurs ont un quota fixe de messages, et l'application s'arrête
+ * lorsque le nombre total de messages consommés atteint la somme des quotas.
+ */
 public class TestProdCons {
+
     public static void main(String[] args) throws Exception {
-        // Charger la conf
+        // Chargement de la configuration depuis le fichier XML
         var p = new java.util.Properties();
         try (InputStream in = TestProdCons.class.getResourceAsStream("/prodcons/options.xml")) {
             if (in == null)
                 throw new IllegalStateException("prodcons/options.xml introuvable sur le classpath");
             p.loadFromXML(in);
         }
+
         int nProd = Integer.parseInt(p.getProperty("nProd"));
         int nCons = Integer.parseInt(p.getProperty("nCons"));
         int bufSz = Integer.parseInt(p.getProperty("bufSz"));
@@ -22,7 +31,7 @@ public class TestProdCons {
         int minProd = Integer.parseInt(p.getProperty("minProd"));
         int maxProd = Integer.parseInt(p.getProperty("maxProd"));
 
-        // Tirer les quotas des producteurs AVANT de démarrer
+        // Tirage des quotas des producteurs avant tout démarrage
         int[] quotas = new int[nProd];
         int total = 0;
         for (int i = 0; i < nProd; i++) {
@@ -30,13 +39,29 @@ public class TestProdCons {
             quotas[i] = q;
             total += q;
         }
-
         final int TOTAL = total;
 
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
         AtomicInteger consumed = new AtomicInteger(0);
 
-        // Créer threads
+        // Affichage de la configuration et des quotas
+        System.out.println("===============================================");
+        System.out.println("[TEST v2] Démarrage ProdCons v2 (terminaison)");
+        System.out.printf("  nProd   = %d%n", nProd);
+        System.out.printf("  nCons   = %d%n", nCons);
+        System.out.printf("  bufSz   = %d%n", bufSz);
+        System.out.printf("  prodT   = %d ms%n", prodT);
+        System.out.printf("  consT   = %d ms%n", consT);
+        System.out.printf("  minProd = %d%n", minProd);
+        System.out.printf("  maxProd = %d%n", maxProd);
+        System.out.printf("  TOTAL messages (somme des quotas) = %d%n", TOTAL);
+        System.out.println("  Quotas par producteur :");
+        for (int i = 0; i < nProd; i++) {
+            System.out.printf("    P-%d : %d messages%n", i + 1, quotas[i]);
+        }
+        System.out.println("===============================================");
+
+        // Création des threads producteurs et consommateurs
         List<Thread> all = new ArrayList<>();
         List<Thread> producers = new ArrayList<>();
         List<Thread> consumers = new ArrayList<>();
@@ -52,12 +77,12 @@ public class TestProdCons {
             all.add(t);
         }
 
-        // (Optionnel) petit monitor
+        // Thread de monitoring périodique
         Thread monitor = new Thread(() -> {
             try {
                 while (true) {
                     Thread.sleep(500);
-                    System.out.printf("[STAT] nmsg=%d tot=%d consumed=%d / %d%n",
+                    System.out.printf("[STAT v2] nmsg=%d tot=%d consumed=%d / %d%n",
                             buffer.nmsg(), buffer.totmsg(), consumed.get(), TOTAL);
                 }
             } catch (InterruptedException ignored) {
@@ -66,21 +91,22 @@ public class TestProdCons {
         monitor.setDaemon(true);
         monitor.start();
 
-        // Démarrage mélangé
+        // Démarrage mélangé pour bien intercaler producteurs et consommateurs
         Collections.shuffle(all, new Random());
         for (Thread t : all)
             t.start();
 
-        // Watcher: attendre la consommation complète
+        // Boucle de surveillance : on attend que tous les messages soient consommés
         while (consumed.get() < TOTAL) {
             Thread.sleep(100); // polling léger
         }
 
-        // Tous les messages ont été consommés → interruption des consommateurs
+        // Tous les messages ont été consommés : on interrompt les consommateurs
+        System.out.println("[TEST v2] Tous les messages ont été consommés.");
         for (Thread c : consumers)
             c.interrupt();
 
-        // Joindre les producteurs (finissent naturellement après leur quota)
+        // Joindre les producteurs (se terminent naturellement après leur quota)
         for (Thread pth : producers)
             pth.join();
 
@@ -88,6 +114,18 @@ public class TestProdCons {
         for (Thread c : consumers)
             c.join();
 
+        // Résumé final et quelques vérifications simples
+        System.out.println("===============================================");
+        System.out.println("[TEST v2] Résumé final :");
+        System.out.printf("  TOTAL attendu          = %d%n", TOTAL);
+        System.out.printf("  totalProduced (buffer) = %d%n", buffer.totmsg());
+        System.out.printf("  consumed (compteur)    = %d%n", consumed.get());
+        System.out.printf("  nmsg restant dans buf  = %d%n", buffer.nmsg());
+        boolean ok = (buffer.totmsg() == TOTAL)
+                && (consumed.get() == TOTAL)
+                && (buffer.nmsg() == 0);
+        System.out.printf("  Terminaison cohérente  = %s%n", ok ? "OUI" : "NON");
         System.out.println("== v2 terminé proprement ==");
+        System.out.println("===============================================");
     }
 }
