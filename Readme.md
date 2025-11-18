@@ -230,6 +230,7 @@ multi-exemplaires.
 # TO-DO
 
 -   v7 readme after being okay with the implem
+-   sump test results in files
 
 
 
