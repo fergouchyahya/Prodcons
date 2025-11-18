@@ -61,27 +61,34 @@ public class Producer extends Thread {
 
     @Override
     public void run() {
-        for (int i = 0; i < quota; i++) {
+        try {
+            for (int i = 0; i < quota; i++) {
+                try {
+                    Thread.sleep(prodTimeMs);
+
+                    int id = GEN.incrementAndGet();
+                    Message m = new Message(id, getId());
+
+                    Log.info("%s putting message %s in %d copies",
+                            getName(), m, nCopies);
+
+                    buffer.put(m, nCopies);
+
+                    Log.info("%s finished synchronized production of %s (%d copies)",
+                            getName(), m, nCopies);
+                } catch (InterruptedException e) {
+                    Log.info("%s interrupted", getName());
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            Log.info("%s finished producing quota=%d messages (each %d copies)",
+                    getName(), quota, nCopies);
+        } finally {
             try {
-                Thread.sleep(prodTimeMs);
-
-                int id = GEN.incrementAndGet();
-                Message m = new Message(id, getId());
-
-                Log.info("%s putting message %s in %d copies",
-                        getName(), m, nCopies);
-
-                buffer.put(m, nCopies);
-
-                Log.info("%s finished synchronized production of %s (%d copies)",
-                        getName(), m, nCopies);
-
-            } catch (InterruptedException e) {
-                Log.info("%s interrupted", getName());
-                return;
+                buffer.producerDone();
+            } catch (Throwable t) {
             }
         }
-        Log.info("%s finished producing quota=%d messages (each %d copies)",
-                getName(), quota, nCopies);
     }
 }

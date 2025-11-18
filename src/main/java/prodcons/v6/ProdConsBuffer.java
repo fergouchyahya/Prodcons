@@ -66,6 +66,9 @@ public class ProdConsBuffer implements IProdConsBuffer {
      */
     private int totalProduced = 0;
 
+    private int producersRemaining = 0;
+    private volatile boolean closed = false;
+
     /**
      * Lock équitable protégeant toutes les données partagées du buffer.
      */
@@ -90,6 +93,44 @@ public class ProdConsBuffer implements IProdConsBuffer {
         if (capacity <= 0)
             throw new IllegalArgumentException("capacity <= 0");
         this.buf = new Slot[capacity];
+    }
+
+    @Override
+    public void setProducersCount(int n) {
+        if (n < 0)
+            throw new IllegalArgumentException("n < 0");
+        lock.lock();
+        try {
+            this.producersRemaining = n;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void producerDone() {
+        lock.lock();
+        try {
+            if (producersRemaining > 0) {
+                producersRemaining--;
+                if (producersRemaining == 0) {
+                    closed = true;
+                    notEmpty.signalAll();
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public boolean isClosed() {
+        lock.lock();
+        try {
+            return closed;
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -134,9 +175,12 @@ public class ProdConsBuffer implements IProdConsBuffer {
     public Message get() throws InterruptedException {
         lock.lock();
         try {
-            // Attendre qu'il y ait au moins un slot (message disponible)
-            while (count == 0) {
+            while (count == 0 && !closed) {
                 notEmpty.await();
+            }
+
+            if (count == 0 && closed) {
+                return null;
             }
 
             // On regarde le slot en tête de file (mais on ne l'enlève pas encore)

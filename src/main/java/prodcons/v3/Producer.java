@@ -52,29 +52,32 @@ public class Producer extends Thread {
 
     @Override
     public void run() {
-        for (int i = 0; i < quota; i++) {
+        try {
+            for (int i = 0; i < quota; i++) {
+                try {
+                    // Simule le temps de production
+                    Thread.sleep(prodTimeMs);
+
+                    // Génère un nouvel identifiant de message
+                    int id = GEN.incrementAndGet();
+
+                    // Crée le message et l'insère dans le buffer
+                    Message m = new Message(id, getId());
+                    buffer.put(m);
+
+                } catch (InterruptedException e) {
+                    Log.info("%s interrupted", getName());
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            // Fin normale après avoir produit tout le quota
+            Log.info("%s finished producing quota=%d", getName(), quota);
+        } finally {
             try {
-                // Simule le temps de production
-                Thread.sleep(prodTimeMs);
-
-                // Génère un nouvel identifiant de message
-                int id = GEN.incrementAndGet();
-
-                // Crée le message et l'insère dans le buffer
-                Message m = new Message(id, getId());
-                buffer.put(m);
-
-                // On pourrait logguer ici si besoin :
-                // Log.info("%s put %s", getName(), m);
-
-            } catch (InterruptedException e) {
-                // Interruption reçue pendant la production :
-                // on termine proprement et on ne force pas le quota complet.
-                Log.info("%s interrupted", getName());
-                return;
+                buffer.producerDone();
+            } catch (Throwable t) {
             }
         }
-        // Fin normale après avoir produit tout le quota
-        Log.info("%s finished producing quota=%d", getName(), quota);
     }
 }

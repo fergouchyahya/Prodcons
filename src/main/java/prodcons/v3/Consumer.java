@@ -49,10 +49,14 @@ public class Consumer extends Thread {
 
     @Override
     public void run() {
-        while (!isInterrupted()) {
+        while (true) {
             try {
                 // Récupère un message depuis le buffer (bloquant si vide)
                 Message m = buffer.get();
+
+                // Si buffer fermé et vide, get() retourne null -> fin
+                if (m == null)
+                    break;
 
                 // Signale qu'un message de plus a été consommé
                 consumed.incrementAndGet();
@@ -61,7 +65,7 @@ public class Consumer extends Thread {
                 Thread.sleep(consTimeMs);
 
             } catch (InterruptedException e) {
-                // Interruption utilisée comme signal de terminaison propre
+                Thread.currentThread().interrupt();
                 return;
             }
         }

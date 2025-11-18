@@ -48,6 +48,22 @@ public class ProdConsBuffer implements IProdConsBuffer {
      */
     private int totalProduced = 0;
 
+    /**
+     * Nombre de producteurs restants à déclarer finis.
+     */
+    private int producersRemaining = 0;
+
+    /**
+     * Nombre de consommateurs attendus (pour réveiller lors de la fermeture).
+     */
+    private int consumersCount = 0;
+
+    /**
+     * Indique la fin de la production (tous les producers ont appelé
+     * producerDone()).
+     */
+    private volatile boolean closed = false;
+
     // Sémaphores
 
     /**
@@ -84,6 +100,43 @@ public class ProdConsBuffer implements IProdConsBuffer {
         this.mutex = new Semaphore(1, true); // mutex binaire, juste pour la section critique
     }
 
+    @Override
+    public void setProducersCount(int n) {
+        if (n < 0)
+            throw new IllegalArgumentException("n < 0");
+        this.producersRemaining = n;
+    }
+
+    @Override
+    public void setConsumersCount(int n) {
+        if (n < 0)
+            throw new IllegalArgumentException("n < 0");
+        this.consumersCount = n;
+    }
+
+    @Override
+    public void producerDone() {
+        // Décrémenter atomiquement via synchronisation simple
+        synchronized (this) {
+            if (producersRemaining > 0) {
+                producersRemaining--;
+                if (producersRemaining == 0) {
+                    closed = true;
+                    // réveiller potentiellement tous les consommateurs bloqués
+                    // en libérant des permis sur full
+                    for (int i = 0; i < consumersCount; i++) {
+                        full.release();
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean isClosed() {
+        return closed;
+    }
+
     /**
      * Insère un message dans le buffer.
      * Bloque si le buffer est plein (empty == 0).
@@ -115,21 +168,30 @@ public class ProdConsBuffer implements IProdConsBuffer {
      */
     @Override
     public Message get() throws InterruptedException {
-        // Attendre qu'un message soit disponible
+        // Attendre qu'un message soit disponible (ou être réveillé par la fermeture)
         full.acquire();
 
         // Entrer en section critique
         mutex.acquire();
+        boolean consumedAny = false;
         try {
+            if (count == 0 && closed) {
+                // réveillé par la fermeture sans message -> fin
+                return null;
+            }
             Message m = buf[out];
             buf[out] = null;
             out = (out + 1) % buf.length;
             count--;
+            consumedAny = true;
             return m;
         } finally {
-            // Sortir de la section critique et libérer une case libre
+            // Sortir de la section critique
             mutex.release();
-            empty.release();
+            // Si on a effectivement consommé un message, libérer une case
+            if (consumedAny) {
+                empty.release();
+            }
         }
     }
 

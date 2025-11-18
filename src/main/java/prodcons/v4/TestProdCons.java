@@ -46,6 +46,7 @@ public class TestProdCons {
         final int TOTAL = total;
 
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        buffer.setProducersCount(nProd);
         AtomicInteger consumed = new AtomicInteger(0);
 
         // Affichage de la configuration et des quotas
@@ -99,22 +100,13 @@ public class TestProdCons {
         Collections.shuffle(all, new Random());
         all.forEach(Thread::start);
 
-        // Attendre que tous les messages aient été consommés
-        while (consumed.get() < TOTAL) {
-            Thread.sleep(100);
-        }
-
-        System.out.println("[TEST v4] Tous les messages ont été consommés.");
-
-        // Interrompre les consommateurs (boucle basée sur isInterrupted dans run)
-        consumers.forEach(Thread::interrupt);
-
-        // Joindre les producteurs (se terminent naturellement après leur quota)
+        // Joindre les producteurs (ils appelleront producerDone() à la fin)
         for (Thread t : producers) {
             t.join();
         }
 
-        // Joindre les consommateurs (après interruption)
+        // Les consommateurs s'arrêteront automatiquement lorsque le buffer
+        // sera fermé et vide : on les rejoint donc directement.
         for (Thread t : consumers) {
             t.join();
         }

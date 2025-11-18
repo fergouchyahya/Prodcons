@@ -42,6 +42,9 @@ public class TestProdCons {
         final int TOTAL = total;
 
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        // Informer le buffer du nombre de producteurs attendus afin que
+        // la terminaison puisse être orchestrée par le buffer lui-même.
+        buffer.setProducersCount(nProd);
         AtomicInteger consumed = new AtomicInteger(0);
 
         // Affichage de la configuration et des quotas
@@ -96,21 +99,12 @@ public class TestProdCons {
         for (Thread t : all)
             t.start();
 
-        // Boucle de surveillance : on attend que tous les messages soient consommés
-        while (consumed.get() < TOTAL) {
-            Thread.sleep(100); // polling léger
-        }
-
-        // Tous les messages ont été consommés : on interrompt les consommateurs
-        System.out.println("[TEST v2] Tous les messages ont été consommés.");
-        for (Thread c : consumers)
-            c.interrupt();
-
-        // Joindre les producteurs (se terminent naturellement après leur quota)
+        // Joindre les producteurs (ils appellent producerDone() à la fin)
         for (Thread pth : producers)
             pth.join();
 
-        // Joindre les consommateurs (interrompus)
+        // Les consommateurs doivent terminer automatiquement lorsque le
+        // buffer est fermé et vide : on les rejoint directement.
         for (Thread c : consumers)
             c.join();
 

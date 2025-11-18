@@ -54,6 +54,7 @@ public class TestProdCons {
         System.out.println("==================================================");
 
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        buffer.setProducersCount(nProd);
 
         List<Thread> all = new ArrayList<>();
         List<Thread> producers = new ArrayList<>();
@@ -85,10 +86,8 @@ public class TestProdCons {
         // laisser un petit délai aux consommateurs pour vider le tampon
         Thread.sleep(1000);
 
-        // arrêter proprement les consommateurs
-        for (Thread c : consumers) {
-            c.interrupt();
-        }
+        // Les consommateurs se terminent automatiquement quand le buffer
+        // est fermé et vide : on les rejoint sans les interrompre.
         for (Thread c : consumers) {
             c.join();
         }

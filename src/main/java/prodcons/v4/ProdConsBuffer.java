@@ -41,6 +41,9 @@ public class ProdConsBuffer implements IProdConsBuffer {
      */
     private int totalProduced = 0;
 
+    private int producersRemaining = 0;
+    private boolean closed = false;
+
     // Synchronisation via ReentrantLock et conditions associées
 
     /**
@@ -71,6 +74,45 @@ public class ProdConsBuffer implements IProdConsBuffer {
         if (capacity <= 0)
             throw new IllegalArgumentException("capacity <= 0");
         this.buf = new Message[capacity];
+    }
+
+    @Override
+    public void setProducersCount(int n) {
+        if (n < 0)
+            throw new IllegalArgumentException("n < 0");
+        lock.lock();
+        try {
+            this.producersRemaining = n;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void producerDone() {
+        lock.lock();
+        try {
+            if (producersRemaining > 0) {
+                producersRemaining--;
+                if (producersRemaining == 0) {
+                    closed = true;
+                    // réveiller tous les consommateurs en attente
+                    notEmpty.signalAll();
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public boolean isClosed() {
+        lock.lock();
+        try {
+            return closed;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -108,19 +150,20 @@ public class ProdConsBuffer implements IProdConsBuffer {
     public Message get() throws InterruptedException {
         lock.lock();
         try {
-            // Tant que le buffer est vide, on attend sur la condition "notEmpty".
-            while (count == 0) {
-                notEmpty.await(); // attendre un message
+            while (count == 0 && !closed) {
+                notEmpty.await();
             }
 
-            // Lecture du message à la position "out"
+            if (count == 0 && closed) {
+                return null;
+            }
+
             Message m = buf[out];
             buf[out] = null;
             out = (out + 1) % buf.length;
             count--;
 
-            // Au moins une case libre est disponible pour un producteur.
-            notFull.signal(); // réveiller un producteur en attente
+            notFull.signal();
             return m;
         } finally {
             lock.unlock();

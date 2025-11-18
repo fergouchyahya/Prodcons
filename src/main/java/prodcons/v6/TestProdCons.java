@@ -25,7 +25,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * - lance nProd producteurs et nCons consommateurs,
  * - attend la fin de tous les producteurs,
  * - vérifie que le buffer est vide et que le nombre total d'exemplaires
- *   produits correspond à ce qui était attendu.
+ * produits correspond à ce qui était attendu.
  */
 public class TestProdCons {
 
@@ -60,6 +60,7 @@ public class TestProdCons {
         final int TOTAL_COPIES = totalMessages * nCopies;
 
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        buffer.setProducersCount(nProd);
 
         // Affichage de la configuration et des quotas
         System.out.println("==================================================");
@@ -129,16 +130,14 @@ public class TestProdCons {
         }
 
         // On laisse un léger délai pour que les derniers consommateurs
-        // sortent de leur barrière locale si nécessaire.
+        // terminent leur travail.
         Thread.sleep(500);
 
         int finalSlots = buffer.nmsg();
         int totalProduced = buffer.totmsg();
 
-        // Interrompre les consommateurs (boucle infinie basée sur isInterrupted)
-        for (Thread c : consumers) {
-            c.interrupt();
-        }
+        // Les consommateurs doivent s'arrêter automatiquement quand le
+        // buffer est fermé et vide : on les rejoint donc directement.
         for (Thread c : consumers) {
             c.join();
         }

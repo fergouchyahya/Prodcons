@@ -30,4 +30,22 @@ public interface IProdConsBuffer {
      * Nombre total de messages déposés depuis le début.
      */
     int totmsg();
+
+    void setProducersCount(int n);
+
+    void producerDone();
+
+    boolean isClosed();
 }
+
+/*
+ * Ancienne interface v7 (commentée)
+ * package prodcons.v7;
+ * 
+ * public interface IProdConsBuffer {
+ * void put(Message m) throws InterruptedException;
+ * Message get() throws InterruptedException;
+ * int nmsg();
+ * int totmsg();
+ * }
+ */

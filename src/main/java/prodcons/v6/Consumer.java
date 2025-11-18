@@ -37,15 +37,18 @@ public class Consumer extends Thread {
 
     @Override
     public void run() {
-        while (!isInterrupted()) {
+        while (true) {
             try {
                 Message m = buffer.get();
+                if (m == null)
+                    break;
 
                 Log.info("%s got %s (multi-exemplaires sync OK)", getName(), m);
 
                 Thread.sleep(consTimeMs);
             } catch (InterruptedException e) {
                 Log.info("%s interrupted", getName());
+                Thread.currentThread().interrupt();
                 return;
             }
         }
