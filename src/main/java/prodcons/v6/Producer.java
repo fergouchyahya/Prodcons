@@ -10,6 +10,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - pour chaque message, le dépose en nCopies exemplaires dans le buffer,
  * - reste bloqué sur put(m, nCopies) tant que tous les exemplaires n'ont pas
  * été consommés.
+ *
+ * Cela réalise une synchronisation point-à-point entre :
+ * - le producteur,
+ * - tous les consommateurs qui participeront à la consommation de ce message.
  */
 public class Producer extends Thread {
 
@@ -35,6 +39,7 @@ public class Producer extends Thread {
 
     /**
      * Temps de "production" par message, en millisecondes.
+     * Sert à simuler une charge et à favoriser la concurrence.
      */
     private final int prodTimeMs;
 
@@ -64,6 +69,7 @@ public class Producer extends Thread {
         try {
             for (int i = 0; i < quota; i++) {
                 try {
+                    // Simule le temps de production du message logique
                     Thread.sleep(prodTimeMs);
 
                     int id = GEN.incrementAndGet();
@@ -72,12 +78,17 @@ public class Producer extends Thread {
                     Log.info("%s putting message %s in %d copies",
                             getName(), m, nCopies);
 
+                    // Dépôt synchrone : le thread reste bloqué tant que
+                    // tous les exemplaires ne sont pas consommés.
                     buffer.put(m, nCopies);
 
                     Log.info("%s finished synchronized production of %s (%d copies)",
                             getName(), m, nCopies);
                 } catch (InterruptedException e) {
                     Log.info("%s interrupted", getName());
+                    // On restaure le flag d'interruption puis on sort :
+                    // le buffer reste cohérent, les slots déjà déposés
+                    // respecteront toujours la synchronisation.
                     Thread.currentThread().interrupt();
                     return;
                 }
@@ -85,9 +96,12 @@ public class Producer extends Thread {
             Log.info("%s finished producing quota=%d messages (each %d copies)",
                     getName(), quota, nCopies);
         } finally {
+            // Quel que soit le scénario (quota atteint ou interruption),
+            // on signale au buffer qu'un producteur de moins reste actif.
             try {
                 buffer.producerDone();
             } catch (Throwable t) {
+                // On ignore toute anomalie ici pour ne pas casser la terminaison globale.
             }
         }
     }

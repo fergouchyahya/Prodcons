@@ -11,6 +11,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * Les identifiants de messages sont générés via un compteur global GEN
  * partagé entre tous les producteurs, ce qui garantit des IDs uniques.
+ *
+ * À la fin de sa production (normale ou interrompue), le producteur
+ * appelle IProdConsBuffer#producerDone() dans un bloc finally
+ * pour s'assurer que le buffer est correctement informé.
  */
 public class Producer extends Thread {
 
@@ -53,6 +57,8 @@ public class Producer extends Thread {
     @Override
     public void run() {
         try {
+            // Boucle principale de production : le producteur essaie
+            // de produire exactement "quota" messages.
             for (int i = 0; i < quota; i++) {
                 try {
                     // Simule le temps de production
@@ -66,6 +72,8 @@ public class Producer extends Thread {
                     buffer.put(m);
 
                 } catch (InterruptedException e) {
+                    // Si le producteur est interrompu pendant sleep() ou put(),
+                    // on log, on restaure le flag d'interruption, puis on sort.
                     Log.info("%s interrupted", getName());
                     Thread.currentThread().interrupt();
                     return;
@@ -74,9 +82,13 @@ public class Producer extends Thread {
             // Fin normale après avoir produit tout le quota
             Log.info("%s finished producing quota=%d", getName(), quota);
         } finally {
+            // Quel que soit le scénario (fin normale ou interruption),
+            // on informe le buffer qu'un producteur de moins reste actif.
             try {
                 buffer.producerDone();
             } catch (Throwable t) {
+                // On ignore toute exception ici pour éviter de casser
+                // la terminaison globale de l'application.
             }
         }
     }

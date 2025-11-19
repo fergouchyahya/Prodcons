@@ -55,6 +55,7 @@ public class TestProdCons {
         }
         final int TOTAL = total;
 
+        // Le buffer connaît dès le départ le nombre total de messages attendus.
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz, TOTAL);
         AtomicInteger consumed = new AtomicInteger(0);
 
@@ -103,6 +104,7 @@ public class TestProdCons {
                             buffer.nmsg(), buffer.totmsg(), consumed.get(), TOTAL, k);
                 }
             } catch (InterruptedException ignored) {
+                // Interruption normale du monitor à la fin de l'exécution.
             }
         }, "Monitor");
         monitor.setDaemon(true);
@@ -112,14 +114,18 @@ public class TestProdCons {
         Collections.shuffle(all, new Random());
         all.forEach(Thread::start);
 
-        // Attendre que tous les messages attendus aient été consommés
+        // Petite boucle de "polling" pour attendre que tous les messages soient
+        // consommés.
+        // On aurait aussi pu simplement join() les threads, mais ici on a un compteur
+        // global consumed qui nous donne une condition simple : consumed == TOTAL.
         while (consumed.get() < TOTAL) {
             Thread.sleep(100);
         }
 
-        // Tous les messages sont consommés.
-        // Les producteurs finissent naturellement après leur quota,
-        // les consommateurs finissent lorsque get(k) renvoie un lot vide.
+        // À ce stade :
+        // - tous les messages ont été consommés (consumed == TOTAL),
+        // - les producteurs finissent naturellement après leur quota,
+        // - les consommateurs finissent lorsque get(k) renvoie un lot vide.
         for (Thread t : producers)
             t.join();
         for (Thread t : consumers)

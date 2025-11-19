@@ -40,31 +40,7 @@ public interface IProdConsBuffer {
 
     void put(Message m) throws InterruptedException;
 
-    /*
-     * Ancienne version de l'interface (conservée en commentaire)
-     * package prodcons.v2;
-     * 
-     * /**
-     * Buffer partagé entre producteurs et consommateurs.
-     * Cette interface représente la vue abstraite du tampon :
-     * - des producteurs insèrent des Message via put(Message)
-     * - des consommateurs retirent des messages via get()
-     * Les méthodes nmsg() et totmsg() servent
-     * à l'observation / aux tests (statistiques, logs).
-     */
-    /*
-     * public interface IProdConsBuffer {
-     * 
-     * void put(Message m) throws InterruptedException;
-     * 
-     * Message get() throws InterruptedException;
-     * 
-     * int nmsg(); // nombre actuellement dans le buffer
-     * 
-     * int totmsg(); // nombre total produits depuis le début
-     * 
-     * }
-     */
+
 
     /**
      * Retire un message du buffer et le renvoie.

@@ -10,11 +10,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * Objectif :
  * - Vérifier que tous les messages produits (définis par les quotas des
- * producteurs)
- * sont bien consommés,
- * - vérifier que l'application termine proprement,
- * - observer que la solution reste correcte avec des sémaphores et un fort
- * parallélisme.
+ * producteurs) sont bien consommés,
+ * - Vérifier que l'application termine proprement,
+ * - Observer que la solution reste correcte avec un fort parallélisme,
+ * en utilisant cette fois ReentrantLock + Condition au lieu de sémaphores.
  */
 public class TestProdCons {
 
@@ -46,6 +45,7 @@ public class TestProdCons {
         final int TOTAL = total;
 
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        // Le buffer doit connaître le nombre total de producteurs
         buffer.setProducersCount(nProd);
         AtomicInteger consumed = new AtomicInteger(0);
 
@@ -82,7 +82,12 @@ public class TestProdCons {
             all.add(t);
         }
 
-        // Monitor optionnel pour afficher régulièrement l'état
+        // Monitor optionnel pour afficher régulièrement l'état :
+        // - nmsg : messages actuellement dans le buffer
+        // - totmsg : total produits
+        // - consumed : total consommés
+        //
+        // Ce thread est daemon, il ne bloque pas l'arrêt de la JVM.
         Thread monitor = new Thread(() -> {
             try {
                 while (true) {
@@ -91,6 +96,7 @@ public class TestProdCons {
                             buffer.nmsg(), buffer.totmsg(), consumed.get(), TOTAL);
                 }
             } catch (InterruptedException ignored) {
+                // Interruption normale du monitor lors de la fin du programme.
             }
         }, "Monitor");
         monitor.setDaemon(true);

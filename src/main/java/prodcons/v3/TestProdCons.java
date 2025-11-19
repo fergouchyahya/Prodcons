@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TestProdCons {
 
     public static void main(String[] args) throws Exception {
-        // Chargement de la configuration
+        // Chargement de la configuration depuis le fichier XML du classpath
         var p = new java.util.Properties();
         try (InputStream in = TestProdCons.class.getResourceAsStream("/prodcons/options.xml")) {
             if (in == null)
@@ -50,7 +50,7 @@ public class TestProdCons {
         final int TOTAL = total;
 
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
-        // informer le buffer du nombre de producteurs/consommateurs attendus
+        // Informer le buffer du nombre de producteurs/consommateurs attendus
         buffer.setProducersCount(nProd);
         buffer.setConsumersCount(nCons);
         AtomicInteger consumed = new AtomicInteger(0);
@@ -88,7 +88,13 @@ public class TestProdCons {
             all.add(t);
         }
 
-        // Monitor optionnel pour afficher régulièrement l'état
+        // Monitor optionnel pour afficher régulièrement l'état du système :
+        // - nombre de messages dans le buffer
+        // - nombre total produits
+        // - nombre total consommés
+        //
+        // Ce thread est marqué "daemon" pour ne pas empêcher la JVM de
+        // s'arrêter une fois que producteurs + consommateurs sont terminés.
         Thread monitor = new Thread(() -> {
             try {
                 while (true) {
@@ -97,6 +103,7 @@ public class TestProdCons {
                             buffer.nmsg(), buffer.totmsg(), consumed.get(), TOTAL);
                 }
             } catch (InterruptedException ignored) {
+                // Interruption normale du monitor lors de l'arrêt de l'application
             }
         }, "Monitor");
         monitor.setDaemon(true);

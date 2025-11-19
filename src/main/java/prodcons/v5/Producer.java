@@ -11,6 +11,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * Les identifiants des messages sont générés à partir d'un compteur global GEN,
  * ce qui garantit des IDs uniques sur l'ensemble des producteurs.
+ *
+ * Contrairement à v3/v4, il n'y a pas de producerDone() : la terminaison
+ * globale est gérée par expectedTotal dans le buffer, qui connaît la somme
+ * des quotas de tous les producteurs.
  */
 public class Producer extends Thread {
 
@@ -54,11 +58,19 @@ public class Producer extends Thread {
     public void run() {
         for (int i = 0; i < quota; i++) {
             try {
+                // Simule un temps de production
                 Thread.sleep(prodTimeMs);
+
+                // Génère un identifiant unique pour le message
                 int id = GEN.incrementAndGet();
+
+                // Insère le message dans le buffer
                 buffer.put(new Message(id, getId()));
+
             } catch (InterruptedException e) {
-                // Interruption = arrêt anticipé, on ne force pas la fin du quota
+                // Interruption = arrêt anticipé, on ne force pas la fin du quota.
+                // Le buffer reste cohérent car totalProduced ne sera pas égal
+                // à expectedTotal si on ne produit pas tout.
                 return;
             }
         }

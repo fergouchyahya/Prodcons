@@ -12,13 +12,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * - buffer circulaire borné, synchronisé avec ReentrantLock + Conditions,
  * - support de la consommation unitaire (get()) et par lot (get(k)),
  * - gestion de la fin de production via expectedTotal, pour que les
- * consommateurs
- * puissent détecter qu'il n'y aura plus jamais de nouveaux messages.
+ * consommateurs puissent détecter qu'il n'y aura plus jamais de nouveaux
+ * messages.
  *
  * expectedTotal représente le nombre total de messages qui seront produits
  * (somme des quotas de tous les producteurs).
  * Quand totalProduced atteint expectedTotal, le buffer est considéré comme
- * "fermé".
+ * "fermé" (plus de production à venir).
  */
 public class ProdConsBuffer implements IProdConsBuffer {
 
@@ -91,6 +91,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
 
     /**
      * Indique si la production est terminée (tous les messages ont été produits).
+     * On ne s'occupe ici que de la production, pas du fait que le buffer soit vidé.
      */
     private boolean finished() {
         return totalProduced >= expectedTotal;
@@ -104,7 +105,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
             while (count == buf.length)
                 notFull.await();
 
-            // Insertion du message
+            // Insertion du message dans le buffer circulaire
             buf[in] = m;
             in = (in + 1) % buf.length;
             count++;
@@ -194,6 +195,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
                 }
             }
 
+            // Conversion de la liste en tableau compact
             return batch.toArray(new Message[0]);
         } finally {
             lock.unlock();

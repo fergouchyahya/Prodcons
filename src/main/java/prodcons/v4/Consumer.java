@@ -5,12 +5,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Consommateur pour la version v4.
  *
- * Ce thread consomme des messages dans le buffer partagé jusqu'à être
- * interrompu.
+ * Ce thread consomme des messages dans le buffer partagé jusqu'à :
+ * - recevoir un signal de fin (get() renvoie null lorsque le buffer est
+ * fermé et vide),
+ * - ou être interrompu.
+ *
  * Chaque message consommé incrémente un compteur global "consumed", partagé
- * entre
- * tous les consommateurs. Ce compteur permet au thread de test de savoir quand
- * l'ensemble des messages produits ont été effectivement consommés.
+ * entre tous les consommateurs. Ce compteur permet au thread de test de savoir
+ * quand l'ensemble des messages produits ont été effectivement consommés.
  */
 public class Consumer extends Thread {
 
@@ -51,12 +53,24 @@ public class Consumer extends Thread {
     public void run() {
         while (true) {
             try {
+                // Récupère un message depuis le buffer (bloquant si vide)
                 Message m = buffer.get();
+
+                // Convention v4 :
+                // - si le buffer est fermé et définitivement vide,
+                // get() renvoie null pour indiquer au consommateur d’arrêter.
                 if (m == null)
                     break;
+
+                // Incrémente le compteur global de messages consommés
                 consumed.incrementAndGet();
+
+                // Simule le temps de traitement du message
                 Thread.sleep(consTimeMs);
+
             } catch (InterruptedException e) {
+                // Interruption "propre" : on restaure le flag d’interruption
+                // puis on termine le thread.
                 Thread.currentThread().interrupt();
                 return;
             }

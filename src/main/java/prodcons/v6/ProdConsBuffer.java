@@ -19,12 +19,22 @@ import java.util.concurrent.locks.ReentrantLock;
  * - le nombre total d'exemplaires (copies),
  * - le nombre déjà consommé (taken),
  * - une Condition servant de barrière pour ce message.
+ *
+ * Le buffer lui-même est un tableau circulaire de slots, protégé par un
+ * ReentrantLock équitable, avec deux conditions globales :
+ * - notFull : le buffer n'est pas plein (au moins un slot libre),
+ * - notEmpty: le buffer n'est pas vide (au moins un slot présent).
  */
 public class ProdConsBuffer implements IProdConsBuffer {
 
     /**
      * Représente un message multi-exemplaires dans le buffer.
      * Un seul slot par message, avec un compteur d'exemplaires.
+     *
+     * allConsumed est une condition spécifique à ce message, utilisée comme
+     * barrière :
+     * - le producteur attend dessus jusqu'à ce que taken == copies,
+     * - les consommateurs (sauf le dernier) attendent aussi que taken == copies.
      */
     private static final class Slot {
         final Message msg;
@@ -66,7 +76,17 @@ public class ProdConsBuffer implements IProdConsBuffer {
      */
     private int totalProduced = 0;
 
+    /**
+     * Nombre de producteurs qui n'ont pas encore signalé leur fin.
+     * Initialisé via setProducersCount(), décrémenté par producerDone().
+     */
     private int producersRemaining = 0;
+
+    /**
+     * Indique si la production est terminée (tous les producteurs ont
+     * appelé producerDone()).
+     * Quand closed == true, aucun nouveau slot ne sera inséré.
+     */
     private volatile boolean closed = false;
 
     /**
@@ -76,11 +96,14 @@ public class ProdConsBuffer implements IProdConsBuffer {
 
     /**
      * Condition "buffer non plein" (il reste au moins un slot libre).
+     * Les producteurs attendent dessus lorsque count == buf.length.
      */
     private final Condition notFull = lock.newCondition();
 
     /**
      * Condition "buffer non vide" (au moins un slot présent).
+     * Les consommateurs attendent dessus lorsque count == 0 et que le
+     * buffer n'est pas encore fermé.
      */
     private final Condition notEmpty = lock.newCondition();
 
@@ -114,7 +137,10 @@ public class ProdConsBuffer implements IProdConsBuffer {
             if (producersRemaining > 0) {
                 producersRemaining--;
                 if (producersRemaining == 0) {
+                    // Tous les producteurs ont fini : on ferme le buffer.
                     closed = true;
+                    // Réveiller les consommateurs qui attendent alors que
+                    // plus aucun slot ne pourra apparaître.
                     notEmpty.signalAll();
                 }
             }
@@ -146,6 +172,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
             }
 
             // Créer le slot logique pour ce message multi-exemplaires
+            // avec une condition dédiée à ce message.
             Slot slot = new Slot(m, n, lock.newCondition());
 
             // Insérer le slot dans le buffer
@@ -154,7 +181,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
             count++;
             totalProduced += n;
 
-            // Réveiller les consommateurs : un nouveau message est disponible
+            // Réveiller les consommateurs : un nouveau slot est disponible
             notEmpty.signalAll();
 
             // Barrière producteur :
@@ -175,25 +202,31 @@ public class ProdConsBuffer implements IProdConsBuffer {
     public Message get() throws InterruptedException {
         lock.lock();
         try {
+            // Tant que le buffer est vide et que la production n'est pas déclarée
+            // terminée, on attend l'arrivée d'un slot.
             while (count == 0 && !closed) {
                 notEmpty.await();
             }
 
+            // Si le buffer est vide et que la production est terminée,
+            // plus rien à consommer : on signale la fin par null.
             if (count == 0 && closed) {
                 return null;
             }
 
-            // On regarde le slot en tête de file (mais on ne l'enlève pas encore)
+            // On regarde le slot en tête de file (mais on ne l'enlève pas encore).
             Slot slot = buf[out];
 
-            // Ce consommateur prend un exemplaire
+            // Ce consommateur prend un exemplaire de ce message.
             slot.taken++;
             boolean last = (slot.taken == slot.copies);
 
             if (last) {
-                // Ce consommateur est le dernier :
-                // - on enlève le slot du buffer
-                // - on libère un slot pour les producteurs
+                // Ce consommateur est le dernier à prendre un exemplaire :
+                // - on enlève le slot du buffer,
+                // - on libère un slot pour les producteurs,
+                // - on réveille tous ceux qui attendent la fin de consommation
+                // de ce message (producteur + autres consommateurs).
                 buf[out] = null;
                 out = (out + 1) % buf.length;
                 count--;
@@ -206,10 +239,11 @@ public class ProdConsBuffer implements IProdConsBuffer {
                 while (slot.taken < slot.copies) {
                     slot.allConsumed.await();
                 }
-                // Quand il se réveille, last a déjà fait le nettoyage.
+                // Quand il se réveille, le dernier consommateur a déjà fait
+                // le nettoyage du slot et libéré les ressources.
             }
 
-            // Tous les exemplaires de ce message ont été consommés,
+            // Tous les exemplaires de ce message ont été consommés :
             // ce consommateur peut poursuivre avec le message qu'il a récupéré.
             return slot.msg;
 

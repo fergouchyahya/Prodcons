@@ -38,14 +38,4 @@ public interface IProdConsBuffer {
     boolean isClosed();
 }
 
-/*
- * Ancienne interface v7 (commentée)
- * package prodcons.v7;
- * 
- * public interface IProdConsBuffer {
- * void put(Message m) throws InterruptedException;
- * Message get() throws InterruptedException;
- * int nmsg();
- * int totmsg();
- * }
- */
+

@@ -23,11 +23,14 @@ public class Consumer extends Thread {
 
     /**
      * Temps de "traitement" après chaque lot consommé, en millisecondes.
+     * Permet de simuler un coût de traitement et de favoriser la concurrence.
      */
     private final int consTimeMs;
 
     /**
      * Taille des lots de consommation (paramètre k de get(k)).
+     * Ce n'est pas forcément la taille du buffer physique, mais la
+     * taille cible logique des batchs consommés.
      */
     private final int k;
 
@@ -61,6 +64,9 @@ public class Consumer extends Thread {
                 // Récupère un lot de k messages (ou moins en fin de production)
                 Message[] batch = buffer.get(k);
 
+                // Convention v5 :
+                // - taille > 0 : il reste des messages à traiter
+                // - taille == 0 : production terminée et buffer vidé → fin du consommateur
                 if (batch.length == 0) {
                     // Fin de production et tampon vidé :
                     // get(k) signale la fin en renvoyant un lot vide.
@@ -75,6 +81,7 @@ public class Consumer extends Thread {
 
             } catch (InterruptedException e) {
                 // Interruption = terminaison propre
+                // On ne remet pas le flag ici, on sort juste de run().
                 return;
             }
         }

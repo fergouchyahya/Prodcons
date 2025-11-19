@@ -9,6 +9,8 @@ package prodcons.v6;
  * jusqu'à ce que tous les exemplaires de ce message aient été consommés.
  *
  * Ce consommateur simule ensuite un temps de traitement.
+ * La boucle principale se termine lorsque get() renvoie null, ce qui signifie
+ * que le buffer est fermé et définitivement vide.
  */
 public class Consumer extends Thread {
 
@@ -39,15 +41,24 @@ public class Consumer extends Thread {
     public void run() {
         while (true) {
             try {
+                // Récupère un exemplaire de message.
+                // Convention v6 : get() renvoie null lorsque le buffer est
+                // fermé et définitivement vide.
                 Message m = buffer.get();
                 if (m == null)
                     break;
 
+                // À ce stade, la synchronisation multi-exemplaires a déjà eu
+                // lieu dans get() : ce thread ne reprend la main qu'une fois
+                // que tous les exemplaires du message ont été consommés.
                 Log.info("%s got %s (multi-exemplaires sync OK)", getName(), m);
 
+                // Simulation de traitement du message.
                 Thread.sleep(consTimeMs);
+
             } catch (InterruptedException e) {
                 Log.info("%s interrupted", getName());
+                // On restaure le flag d'interruption puis on sort proprement.
                 Thread.currentThread().interrupt();
                 return;
             }

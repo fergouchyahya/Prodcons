@@ -10,7 +10,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * - Reprendre la logique producteur/consommateur avec un buffer circulaire,
  * - Utiliser explicitement les sections critiques conditionnelles de Java
  * (ReentrantLock + Condition).
+ *
  * Le lock est créé en mode équitable afin de limiter la famine entre threads.
+ * La terminaison est gérée par :
+ * - un compteur de producteurs restants (producersRemaining),
+ * - un drapeau "closed" indiquant que la production est terminée.
  */
 public class ProdConsBuffer implements IProdConsBuffer {
 
@@ -41,27 +45,38 @@ public class ProdConsBuffer implements IProdConsBuffer {
      */
     private int totalProduced = 0;
 
+    /**
+     * Nombre de producteurs n'ayant pas encore signalé leur fin.
+     * Initialisé par setProducersCount(n), décrémenté par producerDone().
+     */
     private int producersRemaining = 0;
+
+    /**
+     * Indique si la production est définitivement terminée.
+     * Quand closed == true, aucun nouveau message ne sera inséré.
+     */
     private boolean closed = false;
 
     // Synchronisation via ReentrantLock et conditions associées
 
     /**
      * Lock principal protégeant l'accès aux variables partagées
-     * (buf, in, out, count, totalProduced).
+     * (buf, in, out, count, totalProduced, producersRemaining, closed).
      * Le constructeur équitable (true) réduit le risque de famine.
      */
     private final ReentrantLock lock = new ReentrantLock(true);
 
     /**
      * Condition "buffer pas plein".
-     * Les producteurs attendent dessus lorsque le buffer est plein.
+     * Les producteurs attendent dessus lorsque le buffer est plein
+     * (count == buf.length).
      */
     private final Condition notFull = lock.newCondition();
 
     /**
      * Condition "buffer pas vide".
-     * Les consommateurs attendent dessus lorsque le buffer est vide.
+     * Les consommateurs attendent dessus lorsque le buffer est vide
+     * (count == 0).
      */
     private final Condition notEmpty = lock.newCondition();
 
@@ -94,9 +109,11 @@ public class ProdConsBuffer implements IProdConsBuffer {
         try {
             if (producersRemaining > 0) {
                 producersRemaining--;
+                // Quand le dernier producteur a fini, on ferme le buffer
                 if (producersRemaining == 0) {
                     closed = true;
-                    // réveiller tous les consommateurs en attente
+                    // Réveiller tous les consommateurs potentiellement
+                    // bloqués sur notEmpty pour qu'ils voient que closed == true.
                     notEmpty.signalAll();
                 }
             }
@@ -144,25 +161,35 @@ public class ProdConsBuffer implements IProdConsBuffer {
 
     /**
      * Retire et renvoie un message du buffer.
-     * Bloque tant que le buffer est vide.
+     * Bloque tant que le buffer est vide et que la production n'est pas terminée.
+     *
+     * Cas particuliers :
+     * - Tant que count == 0 et que closed == false, on attend sur notEmpty.
+     * - Si on se réveille avec count == 0 et closed == true, cela signifie
+     * qu'aucun nouveau message n'arrivera : on renvoie null pour signaler
+     * la fin au consommateur.
      */
     @Override
     public Message get() throws InterruptedException {
         lock.lock();
         try {
+            // Attente conditionnelle : buffer vide mais production encore active
             while (count == 0 && !closed) {
                 notEmpty.await();
             }
 
+            // Si le buffer est vide ET fermé, plus rien à consommer
             if (count == 0 && closed) {
                 return null;
             }
 
+            // Cas normal : on retire un message du buffer circulaire
             Message m = buf[out];
             buf[out] = null;
             out = (out + 1) % buf.length;
             count--;
 
+            // On a libéré une case : réveiller éventuellement un producteur
             notFull.signal();
             return m;
         } finally {
@@ -172,7 +199,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
 
     /**
      * Renvoie le nombre de messages actuellement dans le buffer.
-     * Accès protégé par le même lock que put/get.
+     * Accès protégé par le même lock que put/get pour garantir la cohérence.
      */
     @Override
     public int nmsg() {

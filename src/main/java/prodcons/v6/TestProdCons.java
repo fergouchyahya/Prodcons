@@ -21,7 +21,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * Ce test :
  * - lit la configuration dans prodcons/options.xml,
  * - tire un quota de messages pour chaque producteur,
- * - connaît le nombre total d'exemplaires attendus,
+ * - calcule le nombre total d'exemplaires attendus,
  * - lance nProd producteurs et nCons consommateurs,
  * - attend la fin de tous les producteurs,
  * - vérifie que le buffer est vide et que le nombre total d'exemplaires
@@ -108,6 +108,7 @@ public class TestProdCons {
                             buffer.nmsg(), buffer.totmsg());
                 }
             } catch (InterruptedException ignored) {
+                // Fin normale du monitor lorsque l'appli se termine.
             }
         }, "Monitor");
         monitor.setDaemon(true);
@@ -124,13 +125,13 @@ public class TestProdCons {
         // tant que tous les exemplaires du message n'ont pas été consommés.
         // Donc, lorsque tous les producteurs ont terminé :
         // - tous les messages (et tous leurs exemplaires) ont été consommés,
-        // - le buffer ne devrait plus contenir aucun slot.
+        // - le buffer ne devrait plus contenir aucun slot (ou très bientôt).
         for (Thread pth : producers) {
             pth.join();
         }
 
         // On laisse un léger délai pour que les derniers consommateurs
-        // terminent leur travail.
+        // terminent leur travail (sortie de get(), sleep, logs...).
         Thread.sleep(500);
 
         int finalSlots = buffer.nmsg();
@@ -145,16 +146,16 @@ public class TestProdCons {
         // Résumé final et vérification simple
         System.out.println("==================================================");
         System.out.println("[TEST v6] Résumé final :");
-        System.out.printf("  TOTAL copies attendues       = %d%n", TOTAL_COPIES);
-        System.out.printf("  totalProduced (buffer)       = %d%n", totalProduced);
+        System.out.printf("  TOTAL copies attendues        = %d%n", TOTAL_COPIES);
+        System.out.printf("  totalProduced (buffer)        = %d%n", totalProduced);
         System.out.printf("  slots restants dans le buffer = %d%n", finalSlots);
 
         boolean okProduced = (totalProduced == TOTAL_COPIES);
         boolean okEmpty = (finalSlots == 0);
 
-        System.out.printf("  totalProduced correct        = %s%n", okProduced ? "OUI" : "NON");
+        System.out.printf("  totalProduced correct         = %s%n", okProduced ? "OUI" : "NON");
         System.out.printf("  buffer entièrement vidé       = %s%n", okEmpty ? "OUI" : "NON");
-        System.out.printf("  Test global                  = %s%n",
+        System.out.printf("  Test global                   = %s%n",
                 (okProduced && okEmpty) ? "SUCCÈS" : "ÉCHEC");
         System.out.println("== v6 terminé proprement ==");
         System.out.println("==================================================");

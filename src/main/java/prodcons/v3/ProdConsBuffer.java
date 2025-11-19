@@ -14,10 +14,15 @@ import java.util.concurrent.Semaphore;
  * Objectif : reproduire la solution classique Producteur/Consommateur avec
  * sémaphores,
  * tout en favorisant le parallélisme. Les producteurs et consommateurs ne sont
- * bloqués
- * que lorsque le buffer est réellement plein ou vide, et la section critique
- * protégée
- * par mutex est minimale.
+ * bloqués que lorsque le buffer est réellement plein ou vide, et la section
+ * critique protégée par mutex est minimale.
+ *
+ * La terminaison est gérée par :
+ * - un compteur de producteurs restants (producersRemaining),
+ * - un drapeau "closed" indiquant que la production est définitivement
+ * terminée,
+ * - un nombre de consommateurs (consumersCount) pour réveiller ceux qui
+ * attendent lorsque le buffer se ferme.
  */
 public class ProdConsBuffer implements IProdConsBuffer {
 
@@ -49,18 +54,22 @@ public class ProdConsBuffer implements IProdConsBuffer {
     private int totalProduced = 0;
 
     /**
-     * Nombre de producteurs restants à déclarer finis.
+     * Nombre de producteurs qui n'ont pas encore signalé leur fin.
+     * Initialisé par setProducersCount(n) puis décrémenté par producerDone().
      */
     private int producersRemaining = 0;
 
     /**
-     * Nombre de consommateurs attendus (pour réveiller lors de la fermeture).
+     * Nombre total de consommateurs attendus.
+     * Utilisé pour savoir combien de fois il faut libérer la sémaphore "full"
+     * lors de la fermeture pour réveiller tous les consommateurs bloqués.
      */
     private int consumersCount = 0;
 
     /**
      * Indique la fin de la production (tous les producers ont appelé
      * producerDone()).
+     * Quand closed est à true, aucun nouveau message ne sera plus produit.
      */
     private volatile boolean closed = false;
 
@@ -120,10 +129,13 @@ public class ProdConsBuffer implements IProdConsBuffer {
         synchronized (this) {
             if (producersRemaining > 0) {
                 producersRemaining--;
+                // Quand le dernier producteur se déclare terminé :
                 if (producersRemaining == 0) {
                     closed = true;
-                    // réveiller potentiellement tous les consommateurs bloqués
-                    // en libérant des permis sur full
+                    // Réveiller potentiellement tous les consommateurs bloqués
+                    // en libérant des permis sur full.
+                    // Ceux qui se réveillent et ne trouvent pas de message
+                    // verront (closed == true) et recevront null dans get().
                     for (int i = 0; i < consumersCount; i++) {
                         full.release();
                     }
@@ -140,6 +152,8 @@ public class ProdConsBuffer implements IProdConsBuffer {
     /**
      * Insère un message dans le buffer.
      * Bloque si le buffer est plein (empty == 0).
+     *
+     * @param m message à ajouter
      */
     @Override
     public void put(Message m) throws InterruptedException {
@@ -165,6 +179,11 @@ public class ProdConsBuffer implements IProdConsBuffer {
     /**
      * Retire et renvoie un message du buffer.
      * Bloque si le buffer est vide (full == 0).
+     *
+     * Cas particuliers :
+     * - Si le buffer est fermé (closed == true) ET vide (count == 0)
+     * au moment où le consommateur se réveille, la méthode renvoie null
+     * pour signaler au consommateur qu'il doit terminer.
      */
     @Override
     public Message get() throws InterruptedException {
@@ -175,10 +194,13 @@ public class ProdConsBuffer implements IProdConsBuffer {
         mutex.acquire();
         boolean consumedAny = false;
         try {
+            // Si aucun message à lire et que la production est finie,
+            // le réveil vient de la fermeture -> fin pour ce consommateur.
             if (count == 0 && closed) {
-                // réveillé par la fermeture sans message -> fin
                 return null;
             }
+
+            // Cas normal : on retire un message du buffer circulaire
             Message m = buf[out];
             buf[out] = null;
             out = (out + 1) % buf.length;
@@ -211,6 +233,8 @@ public class ProdConsBuffer implements IProdConsBuffer {
 
     /**
      * Lecture du nombre total de messages produits depuis le début.
+     * Utilise également le mutex pour éviter de lire une valeur en cours de mise à
+     * jour.
      */
     @Override
     public int totmsg() {
