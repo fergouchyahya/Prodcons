@@ -55,8 +55,11 @@ public class TestProdCons {
         }
         final int TOTAL = total;
 
-        // Le buffer connaît dès le départ le nombre total de messages attendus.
-        IProdConsBuffer buffer = new ProdConsBuffer(bufSz, TOTAL);
+        // Le buffer est construit avec la capacité ; on initialise ensuite
+        // le nombre de producteurs attendus pour la logique de terminaison
+        // buffer‑centrée.
+        IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        buffer.setProducersCount(nProd);
         AtomicInteger consumed = new AtomicInteger(0);
 
         // Affichage de la configuration et des quotas
@@ -115,9 +118,10 @@ public class TestProdCons {
         all.forEach(Thread::start);
 
         // Petite boucle de "polling" pour attendre que tous les messages soient
-        // consommés.
-        // On aurait aussi pu simplement join() les threads, mais ici on a un compteur
-        // global consumed qui nous donne une condition simple : consumed == TOTAL.
+        // consommés (on garde la vérification par compteur global consumed
+        // pour l'assertion finale). Alternativement on pourrait join() les
+        // producteurs puis consommateurs, mais ici consumed == TOTAL est une
+        // condition simple et robuste.
         while (consumed.get() < TOTAL) {
             Thread.sleep(100);
         }

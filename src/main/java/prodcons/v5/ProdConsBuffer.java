@@ -1,7 +1,6 @@
 package prodcons.v5;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -49,6 +48,18 @@ public class ProdConsBuffer implements IProdConsBuffer {
     private int totalProduced = 0;
 
     /**
+     * Nombre de producteurs encore actifs (n'inclus pas les producteurs
+     * qui ont déjà appelé producerDone()).
+     * Initialisé via setProducersCount(n) par le test.
+     */
+    private int producersRemaining = 0;
+
+    /**
+     * Indique que tous les producteurs ont appelé producerDone().
+     */
+    private boolean closed = false;
+
+    /**
      * Lock équitable pour protéger l'accès au buffer et aux compteurs.
      */
     private final ReentrantLock lock = new ReentrantLock(true);
@@ -71,30 +82,28 @@ public class ProdConsBuffer implements IProdConsBuffer {
      * l'exécution.
      * Ce nombre est connu à l'avance (somme des quotas des producteurs).
      */
-    private final int expectedTotal;
-
     /**
-     * Construit un buffer de capacité donnée, en sachant à l'avance combien
-     * de messages seront produits au total.
+     * Construit un buffer de capacité donnée.
+     * Le nombre de producteurs attendus peut être renseigné ensuite via
+     * {@link #setProducersCount(int)}.
      *
-     * @param capacity      taille maximale du buffer
-     * @param expectedTotal nombre total de messages attendus
+     * @param capacity taille maximale du buffer
      */
-    public ProdConsBuffer(int capacity, int expectedTotal) {
+    public ProdConsBuffer(int capacity) {
         if (capacity <= 0)
             throw new IllegalArgumentException("capacity <= 0");
-        if (expectedTotal < 0)
-            throw new IllegalArgumentException("expectedTotal < 0");
         this.buf = new Message[capacity];
-        this.expectedTotal = expectedTotal;
     }
 
     /**
      * Indique si la production est terminée (tous les messages ont été produits).
      * On ne s'occupe ici que de la production, pas du fait que le buffer soit vidé.
      */
+    /**
+     * Production finie lorsque tous les producteurs ont appelé producerDone().
+     */
     private boolean finished() {
-        return totalProduced >= expectedTotal;
+        return closed;
     }
 
     @Override
@@ -114,12 +123,8 @@ public class ProdConsBuffer implements IProdConsBuffer {
             // Réveil des consommateurs : il y a au moins un message disponible
             notEmpty.signalAll();
 
-            // Si l'on vient de finir la production (totalProduced == expectedTotal),
-            // on s'assure que tous les consommateurs en attente soient réveillés
-            // pour qu'ils puissent constater la fin.
-            if (finished()) {
-                notEmpty.signalAll();
-            }
+            // Rien de plus ici : la fin est signalée par producerDone() lorsque
+            // le dernier producteur a terminé.
         } finally {
             lock.unlock();
         }
@@ -197,6 +202,48 @@ public class ProdConsBuffer implements IProdConsBuffer {
 
             // Conversion de la liste en tableau compact
             return batch.toArray(new Message[0]);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void setProducersCount(int n) {
+        lock.lock();
+        try {
+            if (n < 0)
+                throw new IllegalArgumentException("producers count < 0");
+            this.producersRemaining = n;
+            if (n == 0) {
+                this.closed = true;
+                notEmpty.signalAll();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void producerDone() {
+        lock.lock();
+        try {
+            if (producersRemaining > 0)
+                producersRemaining--;
+            if (producersRemaining == 0) {
+                closed = true;
+                // Réveille tous les consommateurs qui attendent
+                notEmpty.signalAll();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public boolean isClosed() {
+        lock.lock();
+        try {
+            return closed;
         } finally {
             lock.unlock();
         }

@@ -75,4 +75,29 @@ public interface IProdConsBuffer {
      * @return nombre total de messages passés par le buffer
      */
     int totmsg();
+
+    /**
+     * (Buffer‑centré) Initialise le nombre de producteurs attendus.
+     * Doit être appelé avant le démarrage des producteurs dans les tests
+     * qui utilisent cette méthode.
+     *
+     * @param n nombre de producteurs
+     */
+    void setProducersCount(int n);
+
+    /**
+     * Un producteur appelle cette méthode lorsqu'il a fini sa production
+     * (à placer idéalement dans un bloc finally du thread producteur).
+     * Le buffer décrémente alors le compteur interne et, si c'était le
+     * dernier producteur, signale la fin de la production aux consommateurs.
+     */
+    void producerDone();
+
+    /**
+     * Indique si la production globale est terminée (tous les producteurs
+     * ont appelé {@link #producerDone()}).
+     *
+     * @return true si la production est close
+     */
+    boolean isClosed();
 }

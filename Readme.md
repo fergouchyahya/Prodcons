@@ -39,7 +39,7 @@ Objectifs de ce README
     des choix de synchronisation ;
 - documenter les deux variantes (originale vs buffer‑centrée) et leur
     contrat ;
-- lister les fichiers présents par version (y compris v6 et v7) ;
+- lister les fichiers présents par version  ;
 - expliquer comment compiler, exécuter et configurer les tests.
 
 ---
@@ -83,7 +83,7 @@ prodcons/
 │  ├─ Consumer.java
 │  └─ TestProdCons.java
 ├─ v5/
-│  ├─ IProdConsBuffer.java   # interface étendue : get(int k)
+│  ├─ IProdConsBuffer.java   
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
 │  ├─ Log.java
@@ -91,7 +91,7 @@ prodcons/
 │  ├─ Consumer.java
 │  └─ TestProdCons.java
 ├─ v6/
-│  ├─ IProdConsBuffer.java   # interface avec put(m, n)
+│  ├─ IProdConsBuffer.java   
 │  ├─ ProdConsBuffer.java
 │  ├─ Message.java
 │  ├─ Log.java
@@ -318,21 +318,9 @@ Utilisation
 
 ---
 
-## Bonnes pratiques et prochaines étapes
-
-- Conserver la variante historique en commentaire est pratique pour
-    l'enseignement ; si vous préférez un repo plus propre, je peux
-    déplacer ces fichiers dans `archived/`.
-- Ajouter des tests unitaires (JUnit) qui vérifient automatiquement la
-    terminaison et les invariants sur chaque version est recommandé.
-- Si vous souhaitez une API uniforme, on peut migrer v5 pour utiliser
-    `producerDone()` à la place de `expectedTotal`.
-
----
-
 ## Conclusion
 
-Ce projet sert d'outil pédagogique : il montre la progression des
-patterns de synchronisation en Java et compare deux approches de
+Ce projet montre la progression des patterns de 
+synchronisation en Java et compare deux approches de
 gestion de la terminaison. La variante buffer‑centrée fournit une
 séparation des responsabilités et des tests plus simples.
