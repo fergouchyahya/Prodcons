@@ -32,7 +32,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
         this.buf = new Message[capacity];
     }
 
-    @Override
+    
     public void setProducersCount(int n) {
         if (n < 0)
             throw new IllegalArgumentException("n < 0");
@@ -44,7 +44,6 @@ public class ProdConsBuffer implements IProdConsBuffer {
         }
     }
 
-    @Override
     public void producerDone() {
         lock.lock();
         try {
@@ -60,7 +59,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
         }
     }
 
-    @Override
+
     public boolean isClosed() {
         lock.lock();
         try {

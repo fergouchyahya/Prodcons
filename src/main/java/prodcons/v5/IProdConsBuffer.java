@@ -6,10 +6,10 @@ package prodcons.v5;
  * Nouveauté par rapport aux versions précédentes :
  * - ajout de get(int k) qui permet de récupérer un lot de k messages
  * consécutifs.
- *
- * Ici, la terminaison n'est pas gérée par un "producerDone()", mais par le fait
- * que l'implémentation connaît à l'avance le nombre total de messages qui
- * seront produits (expectedTotal dans l'implémentation).
+ * En v5, le buffer gère la terminaison via :
+ * - un nombre de producteurs attendu (initialisé par setProducersCount(int)),
+ * - un appel producerDone() par chaque producteur à sa fin,
+ * ce qui permet au tampon de savoir quand plus aucun message ne sera produit
  */
 public interface IProdConsBuffer {
 
@@ -76,28 +76,5 @@ public interface IProdConsBuffer {
      */
     int totmsg();
 
-    /**
-     * (Buffer‑centré) Initialise le nombre de producteurs attendus.
-     * Doit être appelé avant le démarrage des producteurs dans les tests
-     * qui utilisent cette méthode.
-     *
-     * @param n nombre de producteurs
-     */
-    void setProducersCount(int n);
 
-    /**
-     * Un producteur appelle cette méthode lorsqu'il a fini sa production
-     * (à placer idéalement dans un bloc finally du thread producteur).
-     * Le buffer décrémente alors le compteur interne et, si c'était le
-     * dernier producteur, signale la fin de la production aux consommateurs.
-     */
-    void producerDone();
-
-    /**
-     * Indique si la production globale est terminée (tous les producteurs
-     * ont appelé {@link #producerDone()}).
-     *
-     * @return true si la production est close
-     */
-    boolean isClosed();
 }

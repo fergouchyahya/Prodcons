@@ -9,7 +9,6 @@ package prodcons.v2;
  * à l'observation / aux tests (statistiques, logs).
  */
 public interface IProdConsBuffer {
-
     /**
      * Insère un message dans le buffer.
      * Bloque si le tampon est plein jusqu'à ce qu'une place se libère.
@@ -18,29 +17,7 @@ public interface IProdConsBuffer {
      * @throws InterruptedException si le thread est interrompu pendant l'attente
      */
 
-    /**
-     * Indique au buffer le nombre de producteurs qui vont produire.
-     * Doit être appelé une fois avant le démarrage des producteurs (optionnel),
-     * ou le test peut s'en occuper.
-     */
-    void setProducersCount(int n);
-
-    /**
-     * Signale que ce producteur a terminé sa production.
-     * Lorsque tous les producteurs ont appelé producerDone(), le buffer
-     * passe en état fermé et les consommateurs en attente doivent pouvoir
-     * détecter la fin (get() retourne null).
-     */
-    void producerDone();
-
-    /**
-     * Indique si tous les producteurs ont terminé (buffer fermé).
-     */
-    boolean isClosed();
-
     void put(Message m) throws InterruptedException;
-
-
 
     /**
      * Retire un message du buffer et le renvoie.

@@ -44,7 +44,7 @@ public class TestProdCons {
         }
         final int TOTAL = total;
 
-        IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        ProdConsBuffer buffer = new ProdConsBuffer(bufSz);
         // Le buffer doit connaître le nombre total de producteurs
         buffer.setProducersCount(nProd);
         AtomicInteger consumed = new AtomicInteger(0);

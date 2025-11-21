@@ -10,20 +10,15 @@ import static java.util.Collections.shuffle;
 /**
  * Application de test pour la version v1 du problème producteur-consommateur.
  *
- * Rôle :
- * Lire la configuration depuis le fichier prodcons/options.xml.
- * Créer le buffer, les producteurs et les consommateurs.
- * Démarrer les threads dans un ordre mélangé pour favoriser la
- * concurrence.
- * Laisser tourner le système pendant une durée donnée, puis interrompre
- * tous les threads.
- * Afficher un résumé des statistiques finales.
- * 
+ * Nouvelle logique de terminaison :
+ * - on démarre nProd producteurs et nCons consommateurs ;
+ * - on attend que TOUS les producteurs aient terminé (join) ;
+ * - on attend ensuite que le buffer soit complètement vidé (nmsg() == 0) ;
+ * - puis on interrompt proprement tous les consommateurs ;
+ * - enfin, on affiche un résumé des statistiques.
  *
- * 
- * Remarque : la terminaison est contrôlée par ce test via interruption des
- * threads,
- * car les producteurs/consommateurs de v1 ne se terminent pas d'eux-mêmes.
+ * Aucun arrêt par timer : le test se termine uniquement quand tout le travail
+ * a été fait (tous les messages produits ont été consommés).
  */
 public class TestProdCons {
 
@@ -43,14 +38,10 @@ public class TestProdCons {
         int minProd = Integer.parseInt(p.getProperty("minProd"));
         int maxProd = Integer.parseInt(p.getProperty("maxProd"));
 
-        // Durée du test en millisecondes (optionnelle, défaut : 10 secondes)
-        int runTimeMs = Integer.parseInt(p.getProperty("runTimeMs", "10000"));
-
         IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
 
-        // Affichage de la configuration de test
         Log.info("===============================================");
-        Log.info("[TEST v1] Démarrage ProdCons");
+        Log.info("[TEST v1] Démarrage ProdCons (fin quand tout est consommé)");
         Log.info("  nProd   = %d", nProd);
         Log.info("  nCons   = %d", nCons);
         Log.info("  bufSz   = %d", bufSz);
@@ -58,15 +49,17 @@ public class TestProdCons {
         Log.info("  consT   = %d ms", consT);
         Log.info("  minProd = %d", minProd);
         Log.info("  maxProd = %d", maxProd);
-        Log.info("  runTime = %d ms", runTimeMs);
         Log.info("===============================================");
 
         List<Thread> all = new ArrayList<>();
+        List<Thread> producers = new ArrayList<>();
+        List<Thread> consumers = new ArrayList<>();
 
         // Création des producteurs
         for (int i = 0; i < nProd; i++) {
             Thread prod = new Producer(buffer, minProd, maxProd, prodT);
             prod.setName("P-" + i);
+            producers.add(prod);
             all.add(prod);
         }
 
@@ -74,27 +67,42 @@ public class TestProdCons {
         for (int i = 0; i < nCons; i++) {
             Thread cons = new Consumer(buffer, consT);
             cons.setName("C-" + i);
+            consumers.add(cons);
             all.add(cons);
         }
 
-        // Démarrage mélangé : l'ordre réel de démarrage est aléatoire
+        // Démarrage dans un ordre mélangé
         shuffle(all, new Random());
         for (Thread t : all) {
             t.start();
         }
 
-        // Laisser tourner le système pendant runTimeMs millisecondes
-        Thread.sleep(runTimeMs);
-
-        // Demander l'arrêt propre : interruption de tous les threads
-        Log.info("[TEST v1] Fin du temps de test, interruption des threads...");
-        for (Thread t : all) {
-            t.interrupt();
+        // 1) Attendre la fin de TOUS les producteurs
+        Log.info("[TEST v1] Attente de la fin de tous les producteurs...");
+        for (Thread pth : producers) {
+            pth.join();
         }
+        Log.info("[TEST v1] Tous les producteurs ont terminé. totmsg = %d", buffer.totmsg());
 
-        // Attendre la terminaison de tous les threads
-        for (Thread t : all) {
-            t.join();
+        // 2) Attendre que le buffer soit totalement vidé
+        Log.info("[TEST v1] Attente de la vidange complète du buffer...");
+        while (buffer.nmsg() > 0) {
+            Log.info("[TEST v1] Buffer encore non vide (nmsg=%d, tot=%d)...",
+                    buffer.nmsg(), buffer.totmsg());
+            try {
+                Thread.sleep(50); // petite pause pour éviter un busy-wait agressif
+            } catch (InterruptedException e) {
+                // pas prévu dans ce test : on ignore et on continue à attendre
+            }
+        }
+        Log.info("[TEST v1] Buffer vide. Interruption des consommateurs...");
+
+        // 3) Interrompre proprement tous les consommateurs
+        for (Thread cth : consumers) {
+            cth.interrupt();
+        }
+        for (Thread cth : consumers) {
+            cth.join();
         }
 
         // Résumé final

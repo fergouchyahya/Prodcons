@@ -68,14 +68,12 @@ public class ProdConsBuffer implements IProdConsBuffer {
         this.buf = new Message[capacity];
     }
 
-    @Override
     public synchronized void setProducersCount(int n) {
         if (n < 0)
             throw new IllegalArgumentException("n < 0");
         this.producersRemaining = n;
     }
 
-    @Override
     public synchronized void producerDone() {
         if (producersRemaining > 0) {
             producersRemaining--;
@@ -87,7 +85,6 @@ public class ProdConsBuffer implements IProdConsBuffer {
         }
     }
 
-    @Override
     public synchronized boolean isClosed() {
         return closed;
     }
@@ -151,5 +148,3 @@ public class ProdConsBuffer implements IProdConsBuffer {
         return totalProduced;
     }
 }
-
-

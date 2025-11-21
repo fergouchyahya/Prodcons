@@ -56,7 +56,7 @@ public class Consumer extends Thread {
                 // Récupère un message depuis le buffer (bloquant si vide)
                 Message m = buffer.get();
 
-                // Convention v4 :
+                
                 // - si le buffer est fermé et définitivement vide,
                 // get() renvoie null pour indiquer au consommateur d’arrêter.
                 if (m == null)

@@ -53,7 +53,7 @@ public class TestProdCons {
         }
         System.out.println("==================================================");
 
-        IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        ProdConsBuffer buffer = new ProdConsBuffer(bufSz);
         buffer.setProducersCount(nProd);
 
         List<Thread> all = new ArrayList<>();

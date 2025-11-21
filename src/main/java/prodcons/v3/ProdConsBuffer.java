@@ -109,24 +109,23 @@ public class ProdConsBuffer implements IProdConsBuffer {
         this.mutex = new Semaphore(1, true); // mutex binaire, juste pour la section critique
     }
 
-    @Override
     public void setProducersCount(int n) {
         if (n < 0)
             throw new IllegalArgumentException("n < 0");
         this.producersRemaining = n;
     }
 
-    @Override
     public void setConsumersCount(int n) {
         if (n < 0)
             throw new IllegalArgumentException("n < 0");
         this.consumersCount = n;
     }
 
-    @Override
     public void producerDone() {
         // Décrémenter atomiquement via synchronisation simple
+        mutex.acquireUninterruptibly();
         synchronized (this) {
+
             if (producersRemaining > 0) {
                 producersRemaining--;
                 // Quand le dernier producteur se déclare terminé :
@@ -144,7 +143,6 @@ public class ProdConsBuffer implements IProdConsBuffer {
         }
     }
 
-    @Override
     public boolean isClosed() {
         return closed;
     }

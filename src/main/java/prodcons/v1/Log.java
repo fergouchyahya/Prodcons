@@ -3,7 +3,7 @@ package prodcons.v1;
 import java.util.Date;
 
 /**
- * Utilitaire de journalisation très simple pour le projet ProdCons.
+ * Utilitaire de journalisation très simple .
  * - Permet d'activer/désactiver tous les logs via ENABLED.
  * - Synchronise les écritures sur Systemout pour éviter les lignes entrelacées entre plusieurs threads.
  */

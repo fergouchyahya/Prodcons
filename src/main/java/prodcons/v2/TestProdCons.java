@@ -41,7 +41,7 @@ public class TestProdCons {
         }
         final int TOTAL = total;
 
-        IProdConsBuffer buffer = new ProdConsBuffer(bufSz);
+        ProdConsBuffer buffer = new ProdConsBuffer(bufSz);
         // Informer le buffer du nombre de producteurs attendus afin que
         // la terminaison puisse être orchestrée par le buffer lui-même.
         buffer.setProducersCount(nProd);

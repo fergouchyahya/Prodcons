@@ -91,49 +91,41 @@ public class TaskExecutor {
     private class Worker implements Runnable {
         @Override
         public void run() {
+            boolean counted = true;
             try {
                 while (true) {
-                    // Indiquer que l'on est inactif avant d'attendre
                     idleWorkers.incrementAndGet();
-                    Runnable task = null;
+                    Runnable task;
                     try {
-                        // attend au plus 3 secondes pour récupérer une tâche
                         task = queue.poll(3, TimeUnit.SECONDS);
-                    } catch (InterruptedException ie) {
-                        // Interruption -> on termine
-                        break;
                     } finally {
-                        // On n'est plus inactif (on va soit exécuter soit quitter)
                         idleWorkers.decrementAndGet();
                     }
 
                     if (task == null) {
-                        // timeout d'inactivité -> ce worker se termine
+                        // timeout -> this worker dies
                         synchronized (lock) {
                             currentWorkers--;
                         }
+                        counted = false;
                         break;
                     }
 
-                    // Exécuter la tâche (protégée contre exceptions)
                     try {
                         task.run();
                     } catch (Throwable t) {
-                        // Ne pas laisser une exception tuer le worker
                         t.printStackTrace();
                     }
                 }
-            } finally {
-                // Au cas où on sort par exception, s'assurer de décrémenter le compteur
+            } catch (Throwable t) {
+                // en cas d’exception, on s’assure de décrémenter aussi
                 synchronized (lock) {
-                    if (currentWorkers > 0 && Thread.currentThread().getName().startsWith("TaskExecutor-worker-")) {
-                        // currentWorkers peut déjà avoir été décrémenté lors du timeout ; vérification
-                        // prudente
-                        // on ne peut décrémenter de façon sûre que si la valeur est cohérente
-                        // pour éviter double décrémentation, on ne modifie rien ici.
+                    if (counted) {
+                        currentWorkers--;
                     }
                 }
             }
         }
     }
+
 }

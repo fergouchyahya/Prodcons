@@ -7,7 +7,7 @@ package prodcons.v1;
  * - logge l'opération,
  * - attend consTimeMs millisecondes.
  * La terminaison se fait uniquement en interrompant le thread
- * depuis l'extérieur (test, main, etc.).
+ * depuis l'extérieur.
  */
 public class Consumer extends Thread {
 

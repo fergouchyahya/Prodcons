@@ -1,326 +1,149 @@
+# Projet ProdCons : Implémentations v1 à v7 {#projet-prodcons-implémentations-v1-à-v7 .unnumbered}
 
-# Présentation Générale 
-
-Ce projet explore plusieurs approches de synchronisation pour résoudre
-le problème classique **Producteurs--Consommateurs**, où plusieurs
-threads producteurs génèrent des messages et plusieurs threads
-consommateurs les extraient depuis un tampon partagé.
-
-Les différentes versions (`v1` à `v6`) introduisent progressivement :
-
--   la synchronisation par moniteurs Java (`synchronized`, `wait`,
-    `notify`);
-
--   l'utilisation de sémaphores (`empty`, `full`, `mutex`);
-
--   l'utilisation de verrous explicites et de variables de condition;
-
--   la consommation par lots (`get(k)`);
-
--   les messages en multi-exemplaires synchrones.
-
-Chaque version illustre un concept fondamental de programmation
-concurrente.
-
-# Structure du Projet 
-
-
-# Présentation générale
-
-Ce dépôt rassemble plusieurs implémentations didactiques du problème
-Producteur–Consommateur (package `prodcons`). Chaque version (v1..v7)
-illustre une technique de synchronisation différente et compare deux
-approches de terminaison : l'approche historique ("originale") et une
-approche où la responsabilité de la terminaison est confiée au tampon
-("buffer‑centrée").
-
-Objectifs de ce README
-- donner, pour chaque version, une description claire du principe et
-    des choix de synchronisation ;
-- documenter les deux variantes (originale vs buffer‑centrée) et leur
-    contrat ;
-- lister les fichiers présents par version  ;
-- expliquer comment compiler, exécuter et configurer les tests.
-
----
-
-## Arborescence (extrait complet v1..v7)
-
-```text
-prodcons/
-├─ resources/
-│  └─ prodcons/options.xml
-├─ v1/
-│  ├─ IProdConsBuffer.java
-│  ├─ ProdConsBuffer.java
-│  ├─ Message.java
-│  ├─ Log.java
-│  ├─ Producer.java
-│  ├─ Consumer.java
-│  └─ TestProdCons.java
-├─ v2/
-│  ├─ IProdConsBuffer.java
-│  ├─ ProdConsBuffer.java
-│  ├─ Message.java
-│  ├─ Log.java
-│  ├─ Producer.java
-│  ├─ Consumer.java
-│  └─ TestProdCons.java
-├─ v3/
-│  ├─ IProdConsBuffer.java
-│  ├─ ProdConsBuffer.java
-│  ├─ Message.java
-│  ├─ Log.java
-│  ├─ Producer.java
-│  ├─ Consumer.java
-│  └─ TestProdCons.java
-├─ v4/
-│  ├─ IProdConsBuffer.java
-│  ├─ ProdConsBuffer.java
-│  ├─ Message.java
-│  ├─ Log.java
-│  ├─ Producer.java
-│  ├─ Consumer.java
-│  └─ TestProdCons.java
-├─ v5/
-│  ├─ IProdConsBuffer.java   
-│  ├─ ProdConsBuffer.java
-│  ├─ Message.java
-│  ├─ Log.java
-│  ├─ Producer.java
-│  ├─ Consumer.java
-│  └─ TestProdCons.java
-├─ v6/
-│  ├─ IProdConsBuffer.java   
-│  ├─ ProdConsBuffer.java
-│  ├─ Message.java
-│  ├─ Log.java
-│  ├─ Producer.java
-│  ├─ Consumer.java
-│  └─ TestProdCons.java
-└─ v7/
-     ├─ IProdConsBuffer.java
-     ├─ ProdConsBuffer.java
-     ├─ Message.java
-     ├─ Log.java
-     ├─ Producer.java
-     ├─ Consumer.java
-     ├─ TaskExecutor.java      # exécuteur dynamique (v7)
-     ├─ TestProdCons.java
-     └─ TestTaskExecutor.java
-```
+Ce projet présente plusieurs implémentations progressives du problème
+**Producteurs--Consommateurs**. Chaque version introduit des mécanismes
+de synchronisation différents : moniteurs Java, sémaphores, verrous
+explicites, consommation par lots et synchronisation multi-exemplaires.
 
-Les fichiers `options.xml` contiennent les paramètres utilisés par
-les tests (nombre de producteurs/consommateurs, tailles, délais,
-paramètres propres à v5/v6, ...).
+L'objectif global est de comparer diverses approches de synchronisation
+et d'unifier la *gestion de terminaison* via un modèle
+**buffer-centré**.
 
----
+# Structure du projet
 
-## Comment compiler et lancer
+    prodcons/
+     ├─ resources/prodcons/options.xml
+     ├─ v1/ ... v7/
+     │    IProdConsBuffer.java
+     │    ProdConsBuffer.java
+     │    Producer.java
+     │    Consumer.java
+     │    Message.java
+     │    Log.java
+     │    TestProdCons.java
+     └─ v7/
+          TaskExecutor.java
+          TestTaskExecutor.java
 
-```bash
-mvn -q clean package
-```
+Le fichier `options.xml` configure tous les tests : nombre de
+producteurs/consommateurs, tailles de tampon, délais, paramètres
+spécifiques à v5 (k) ou v6 (nCopies), etc.
 
-Exemples :
+# Compilation et exécution
 
-```bash
-java -cp target/classes prodcons.v3.TestProdCons
-java -cp target/classes prodcons.v5.TestProdCons
-java -cp target/classes prodcons.v7.TestTaskExecutor
-```
+    mvn -q clean package
 
-Pour changer les paramètres, éditez `prodcons/resources/prodcons/options.xml`.
+Exécution d'une version :
 
----
+    java -cp target/classes prodcons.v3.TestProdCons
+    java -cp target/classes prodcons.v5.TestProdCons
+    java -cp target/classes prodcons.v7.TestTaskExecutor
 
-## Contrat commun (buffer‑centré)
+La configuration est modifiable dans :
+`src/main/resources/prodcons/options.xml`.
 
-Les implémentations buffer‑centrées partagent le même contrat utile à
-connaître :
+# Contrat buffer-centré
 
-- `void setProducersCount(int n)` (optionnel) : initialiser le nombre
-    de producteurs attendus.
-- `void producerDone()` : appelé par chaque producteur en `finally`
-    pour indiquer la fin de sa production.
-- `boolean isClosed()` : vrai quand tous les producteurs ont appelé
-    `producerDone()`.
-- `Message get()` : retourne le prochain message ou :
-    - se bloque si vide et des producteurs restent ;
-    - retourne `null` si vide et `isClosed()==true` (signal de fin).
-- `Message[] get(int k)` (v5) :
-    - renvoie exactement `k` messages si disponibles ;
-    - renvoie le reste (taille < k) si `isClosed()==true` et moins de
-        `k` messages subsistent ;
-    - se bloque sinon.
+Les versions modernes utilisent un modèle uniforme de terminaison :
 
-Cette API permet aux consommateurs de terminer sans intervention
-externe (tests / interruptions).
+-   **`setProducersCount(n)`** : nombre de producteurs attendus.
 
----
+-   **`producerDone()`** : appelé en `finally` par chaque producteur.
 
-## Détails par version (principes et variantes)
+-   **`isClosed()`** : vrai lorsque tous les producteurs ont terminé.
 
-Pour chaque version je présente : le principe technique, la variante
-originale (historique) et la variante buffer‑centrée (recommandée).
+-   **`get()`** :
 
-### v1 — Moniteurs Java (`synchronized`)
+    -   bloque si le tampon est vide et la production active ;
 
-Principe
-- Tampon implémenté avec `synchronized`, `wait()` et `notifyAll()`.
+    -   renvoie `null` si le tampon est vide et fermé.
 
-Variante originale
-- Comportement didactique : production/consommation avec réveils
-    globaux. Les tests pouvaient interrompre les consommateurs pour
-    forcer l'arrêt.
+-   **`get(k)`** (v5) :
 
-Variante buffer‑centrée
-- Ajouter `producerDone()`/`setProducersCount()` et `isClosed()` :
-    les consommateurs quittent lorsque `get()` retourne `null`.
+    -   renvoie *k* messages si disponibles ;
 
-Utilisation
-- `java -cp target/classes prodcons.v1.TestProdCons`
+    -   renvoie un lot partiel si `isClosed()`;
 
----
+    -   renvoie un tableau vide si plus rien n'est disponible.
 
-### v2 — Moniteurs + quotas (terminaison déterministe)
+Ce contrat garantit une terminaison propre des consommateurs, sans
+intervention externe.
 
-Principe
-- Chaque producteur reçoit un quota ; la somme des quotas est le
-    TOTAL attendu.
+# Versions et mécanismes
 
-Variante originale
-- Le test attribue les quotas et orchestre la fin (join + actions
-    explicites).
+## v1 --- Moniteurs Java 
 
-Variante buffer‑centrée
-- Buffer avec `producerDone()` décrémente un compteur. Lorsque le
-    tampon est vide et fermé, `get()` renvoie `null` et les consommateurs
-    se terminent proprement.
+-   utilisation de `synchronized`, `wait()`, `notifyAll()`;
 
-Utilisation
-- `java -cp target/classes prodcons.v2.TestProdCons`
+-   implémentation minimale du tampon circulaire.
 
----
+## v2 --- Moniteurs + quotas 
 
-### v3 — Sémaphores (`empty`, `full`, `mutex`)
+-   chaque producteur possède un quota ;
 
-Principe
-- Coordination via sémaphores pour contrôler cases libres (`empty`),
-    messages prêts (`full`) et exclusion (`mutex`).
+-   la somme des quotas permet une terminaison déterministe.
 
-Variante originale
-- Terminaison pilotée par le test (approche historique).
+## v3 --- Sémaphores 
 
-Variante buffer‑centrée
-- On combine sémaphores avec un compteur de producteurs et
-    `producerDone()` : `get()` retourne `null` quand la production est
-    terminée et le tampon vide.
+-   `empty`, `full`, `mutex`;
 
-Utilisation
-- `java -cp target/classes prodcons.v3.TestProdCons`
+-   reproduction de l'algorithme classique Producteur--Consommateur.
 
----
+## v4 --- Locks et Conditions 
 
-### v4 — `ReentrantLock` + `Condition`
+-   synchronisation via `ReentrantLock` équitable ;
 
-Principe
-- Synchronisation plus fine via `ReentrantLock` et `Condition`
-    (`notFull`/`notEmpty`).
+-   conditions `notFull` / `notEmpty`.
 
-Variante originale
-- Fin gérée par le test.
+## v5 --- Consommation par lots 
 
-Variante buffer‑centrée
-- Implémentation du contrat `producerDone()` / `isClosed()` ;
-    `get()` renvoie `null` pour signaler la fin.
+-   méthode `get(k)` pour récupérer un lot de messages ;
 
-Utilisation
-- `java -cp target/classes prodcons.v4.TestProdCons`
+-   gestion automatique des cas partiels en fin de production.
 
----
+## v6 --- Multi-exemplaires synchrones 
 
-### v5 — Consommation par lots (`get(int k)`) — modèle déjà prêt pour
-la terminaison
+-   dépôt d'un message en *n* exemplaires ;
 
-Principe
-- Un consommateur peut demander un lot de `k` messages avec
-    `Message[] get(int k)`.
+-   producteur + consommateurs synchronisés via une barrière locale ;
 
-Variante originale (conception historique)
-- v5 a été conçue pour accepter un `expectedTotal` : si la production
-    se termine avant qu'un lot complet ne soit disponible, `get(k)`
-    renvoie les éléments restants (taille < k) — comportement sûr pour
-    la terminaison.
+-   suppression du slot lorsque tous les exemplaires sont consommés.
 
-Variante buffer‑centrée (uniformisation)
-- On peut remplacer `expectedTotal` par `setProducersCount()`/
-    `producerDone()` ; `get(k)` renvoie un lot partiel si `isClosed()`.
+## v7 --- Tâches et exécuteur dynamique 
 
-Utilisation
-- `java -cp target/classes prodcons.v5.TestProdCons`
+-   les messages encapsulent un `Runnable` exécuté par les consommateurs
+    ;
 
----
+-   **TaskExecutor** : mini pool de threads dynamique :
 
-### v6 — Multi‑exemplaires synchrones (`put(Message m, int n)`)
+    -   création automatique de workers ;
 
-Principe
-- Le producteur peut déposer `n` exemplaires du même message. Les
-    slots du tampon contiennent un compteur d'exemplaires et une
-    condition locale pour coordonner les consommateurs.
+    -   expiration après 3s d'inactivité.
 
-Variante originale
-- Montre la coordination locale entre consommateurs ; la terminaison
-    était gérée par les tests.
+# Observabilité
 
-Variante buffer‑centrée
-- Ajouter `producerDone()` global et laisser les slots gérer la
-    synchronisation locale. Les consommateurs quittent proprement quand
-    tous les exemplaires sont traités et que la production est close.
+Les tests affichent périodiquement :
 
-Utilisation
-- `java -cp target/classes prodcons.v6.TestProdCons`
+-   **nmsg** : nombre d'éléments dans le tampon ;
 
----
+-   **totmsg** : total produit ;
 
-### v7 — Variantes avancées et `TaskExecutor`
+-   **consumed** (v3--v5) : total consommé ;
 
-Principe
-- Tests d'optimisation et composant additionnel `TaskExecutor` qui
-    illustre un pool dynamique.
+-   **slots** (v6) : nombre de slots actifs.
 
-Variante originale
-- Implémentation historique des producteurs/consommateurs (utile
-    pour comparaison).
+La terminaison est correcte lorsque :
 
-Variante buffer‑centrée
-- `producerDone()` / `isClosed()` pour la terminaison globale.
+-   `isClosed()` est vrai ;
 
-TaskExecutor
-- Un exécuteur simple démontrant :
-    - création dynamique de workers jusqu'à `maxWorkers` ;
-    - workers s'arrêtant après 3s d'inactivité ;
-    - utile pour déléguer des tâches CPU sans garder un pool fixe.
+-   le tampon est vide ;
 
-Utilisation
-- `java -cp target/classes prodcons.v7.TestProdCons`
-- `java -cp target/classes prodcons.v7.TestTaskExecutor`
+-   les compteurs sont cohérents.
 
----
+# Conclusion 
 
-## Observabilité et invariants
-
-- Chaque `TestProdCons` affiche périodiquement : `nmsg` (nombre de
-    slots/messages actifs), `tot` (total produit) et `consumed` (total
-    consommé).
-- Condition de terminaison correcte : tampon vide + `isClosed()==true`
-    + compteurs cohérents.
-
----
-
-## Conclusion
-
-Ce projet montre la progression des patterns de 
-synchronisation en Java et compare deux approches de
-gestion de la terminaison. La variante buffer‑centrée fournit une
-séparation des responsabilités et des tests plus simples.
+Ce projet illustre la progression naturelle des mécanismes de
+synchronisation en Java, depuis les moniteurs jusqu'aux scénarios
+avancés comme la consommation par lots, les messages multi-exemplaires
+et l'exécution de tâches. Le modèle **buffer-centré** fournit une
+logique de terminaison robuste, cohérente et facile à tester.

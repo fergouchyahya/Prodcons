@@ -31,11 +31,6 @@ public interface IProdConsBuffer {
      */
     int totmsg();
 
-    void setProducersCount(int n);
-
-    void producerDone();
-
-    boolean isClosed();
 }
 
 

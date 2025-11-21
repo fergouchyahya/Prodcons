@@ -134,14 +134,14 @@ public class TestProdCons {
         // terminent leur travail (sortie de get(), sleep, logs...).
         Thread.sleep(500);
 
-        int finalSlots = buffer.nmsg();
-        int totalProduced = buffer.totmsg();
-
         // Les consommateurs doivent s'arrêter automatiquement quand le
         // buffer est fermé et vide : on les rejoint donc directement.
         for (Thread c : consumers) {
             c.join();
         }
+
+        int finalSlots = buffer.nmsg();
+        int totalProduced = buffer.totmsg();
 
         // Résumé final et vérification simple
         System.out.println("==================================================");

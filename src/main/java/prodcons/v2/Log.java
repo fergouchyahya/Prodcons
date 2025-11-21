@@ -14,7 +14,7 @@ public final class Log {
      * Si false, aucun log n'est produit.
      * Utile pour accélérer les tests ou éviter de polluer la sortie.
      */
-    public static volatile boolean ENABLED = true; // coupe/allume les logs
+    public static volatile boolean ENABLED = true; 
 
     /**
      * Log formaté.

@@ -27,7 +27,7 @@ public class Producer extends Thread {
     /**
      * Buffer partagé dans lequel ce producteur insère ses messages.
      */
-    private final IProdConsBuffer buffer;
+    private final ProdConsBuffer buffer;
 
     /**
      * Nombre de messages que ce producteur doit produire.
@@ -47,7 +47,7 @@ public class Producer extends Thread {
      * @param quota      nombre de messages à produire
      * @param prodTimeMs délai entre deux productions
      */
-    public Producer(int pid, IProdConsBuffer buffer, int quota, int prodTimeMs) {
+    public Producer(int pid, ProdConsBuffer buffer, int quota, int prodTimeMs) {
         super("P-" + pid);
         this.buffer = buffer;
         this.quota = quota;

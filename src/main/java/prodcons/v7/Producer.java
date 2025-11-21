@@ -13,12 +13,14 @@ public class Producer extends Thread {
 
     private static final AtomicInteger GEN = new AtomicInteger(0);
 
-    private final IProdConsBuffer buffer;
+    private final ProdConsBuffer buffer;
     private final int quota;
     private final int prodTimeMs;
+    private final int pid;
 
-    public Producer(int pid, IProdConsBuffer buffer, int quota, int prodTimeMs) {
+    public Producer(int pid, ProdConsBuffer buffer, int quota, int prodTimeMs) {
         super("P-" + pid);
+        this.pid=pid;
         this.buffer = buffer;
         this.quota = quota;
         this.prodTimeMs = prodTimeMs;
@@ -37,7 +39,7 @@ public class Producer extends Thread {
                 Runnable task = () -> {
                     String threadName = Thread.currentThread().getName();
                     System.out.printf("[TASK] %s exécute la tâche %d produite par P-%d%n",
-                            threadName, id, tid);
+                            threadName, id, pid);
                 };
 
                 Message m = new Message(id, tid, task);

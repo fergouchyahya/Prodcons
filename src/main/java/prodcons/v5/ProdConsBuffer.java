@@ -18,6 +18,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * (somme des quotas de tous les producteurs).
  * Quand totalProduced atteint expectedTotal, le buffer est considéré comme
  * "fermé" (plus de production à venir).
+ 
  */
 public class ProdConsBuffer implements IProdConsBuffer {
 
@@ -207,7 +208,6 @@ public class ProdConsBuffer implements IProdConsBuffer {
         }
     }
 
-    @Override
     public void setProducersCount(int n) {
         lock.lock();
         try {
@@ -223,7 +223,6 @@ public class ProdConsBuffer implements IProdConsBuffer {
         }
     }
 
-    @Override
     public void producerDone() {
         lock.lock();
         try {
@@ -239,7 +238,6 @@ public class ProdConsBuffer implements IProdConsBuffer {
         }
     }
 
-    @Override
     public boolean isClosed() {
         lock.lock();
         try {

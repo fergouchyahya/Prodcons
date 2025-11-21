@@ -84,7 +84,7 @@ public interface IProdConsBuffer {
      * Méthode appelée par un producteur lorsqu'il a terminé sa production.
      *
      * Quand le nombre d'appels à producerDone() atteint celui passé à
-     * {@link #setProducersCount(int)}, le buffer peut :
+     * setProducersCount(int), le buffer peut :
      * - se marquer comme fermé,
      * - réveiller les consommateurs bloqués sur get() pour qu'ils constatent
      * la fermeture (get() renverra alors null s'il n'y a plus de slot).
