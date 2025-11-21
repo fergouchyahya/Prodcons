@@ -27,7 +27,7 @@ public class Producer extends Thread {
     /**
      * Buffer partagé dans lequel ce producteur insère ses messages.
      */
-    private final IProdConsBuffer buffer;
+    private final ProdConsBuffer buffer;
 
     /**
      * Nombre de messages que ce producteur doit produire.
@@ -47,7 +47,7 @@ public class Producer extends Thread {
      * @param quota      nombre de messages à produire
      * @param prodTimeMs délai entre deux productions
      */
-    public Producer(int pid, IProdConsBuffer buffer, int quota, int prodTimeMs) {
+    public Producer(int pid, ProdConsBuffer buffer, int quota, int prodTimeMs) {
         super("P-" + pid);
         this.buffer = buffer;
         this.quota = quota;
@@ -82,13 +82,10 @@ public class Producer extends Thread {
             // Fin normale après avoir produit tout le quota
             Log.info("%s finished producing quota=%d", getName(), quota);
         } finally {
-            // On ne dépend plus *directement* de ProdConsBuffer,
-            // mais on appelle producerDone() si c'en est un.
-            if (buffer instanceof ProdConsBuffer pcb) {
-                try {
-                    pcb.producerDone();
-                } catch (Exception ignored) {
-                }
+
+            try {
+                buffer.producerDone();
+            } catch (Exception ignored) {
             }
         }
     }

@@ -122,24 +122,21 @@ public class ProdConsBuffer implements IProdConsBuffer {
     }
 
     public void producerDone() {
-        // Décrémenter atomiquement via synchronisation simple
         mutex.acquireUninterruptibly();
-        synchronized (this) {
-
+        try {
             if (producersRemaining > 0) {
                 producersRemaining--;
-                // Quand le dernier producteur se déclare terminé :
                 if (producersRemaining == 0) {
                     closed = true;
-                    // Réveiller potentiellement tous les consommateurs bloqués
-                    // en libérant des permis sur full.
-                    // Ceux qui se réveillent et ne trouvent pas de message
-                    // verront (closed == true) et recevront null dans get().
+
+                    // Réveiller les consommateurs bloqués
                     for (int i = 0; i < consumersCount; i++) {
                         full.release();
                     }
                 }
             }
+        } finally {
+            mutex.release();
         }
     }
 
