@@ -86,7 +86,7 @@ public class ProdConsBuffer implements IProdConsBuffer {
     /**
      * Construit un buffer de capacité donnée.
      * Le nombre de producteurs attendus peut être renseigné ensuite via
-     * {@link #setProducersCount(int)}.
+     * setProducersCount(int).
      *
      * @param capacity taille maximale du buffer
      */

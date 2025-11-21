@@ -121,8 +121,8 @@ public class ProdConsBuffer implements IProdConsBuffer {
         this.consumersCount = n;
     }
 
-    public void producerDone() {
-        mutex.acquireUninterruptibly();
+    public void producerDone() throws InterruptedException {
+        mutex.acquire();
         try {
             if (producersRemaining > 0) {
                 producersRemaining--;
@@ -218,7 +218,12 @@ public class ProdConsBuffer implements IProdConsBuffer {
      */
     @Override
     public int nmsg() {
-        mutex.acquireUninterruptibly();
+        try {
+            mutex.acquire();
+        } catch (InterruptedException e) {
+
+            e.printStackTrace();
+        }
         try {
             return count;
         } finally {
@@ -230,10 +235,17 @@ public class ProdConsBuffer implements IProdConsBuffer {
      * Lecture du nombre total de messages produits depuis le début.
      * Utilise également le mutex pour éviter de lire une valeur en cours de mise à
      * jour.
+     * 
+     * @throws InterruptedException
      */
     @Override
     public int totmsg() {
-        mutex.acquireUninterruptibly();
+        try {
+            mutex.acquire();
+        } catch (InterruptedException e) {
+
+            e.printStackTrace();
+        }
         try {
             return totalProduced;
         } finally {
