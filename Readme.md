@@ -1,4 +1,4 @@
-# Projet ProdCons : Implémentations v1 à v7 {#projet-prodcons-implémentations-v1-à-v7 .unnumbered}
+# Projet ProdCons : Implémentations v1 à v7 
 
 Ce projet présente plusieurs implémentations progressives du problème
 **Producteurs--Consommateurs**. Chaque version introduit des mécanismes
